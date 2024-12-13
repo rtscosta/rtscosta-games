@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forest Runner Arcade Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: black;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #game-over {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 2em;
+      text-align: center;
+      z-index: 10;
+    }
+
+    #game-over button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+
+    #lives, #score {
+      position: absolute;
+      top: 10px;
+      color: white;
+      font-size: 1.5em;
+      z-index: 5;
+    }
+
+    #lives {
+      left: 10px;
+    }
+
+    #score {
+      right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-over">
+    <p>Game Over! Your Score: <span id="final-score">0</span></p>
+    <button onclick="restartGame()">Restart</button>
+  </div>
+  <div id="lives">Lives: 3</div>
+  <div id="score">Score: 0</div>
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const gameOverScreen = document.getElementById('game-over');
+    const finalScoreElement = document.getElementById('final-score');
+    const livesElement = document.getElementById('lives');
+    const scoreElement = document.getElementById('score');
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const player = {
+      x: 100,
+      y: canvas.height - 100,
+      width: 40,
+      height: 40,
+      color: 'cyan',
+      speed: 5,
+      jumpSpeed: 15,
+      gravity: 1,
+      velocityY: 0,
+      isJumping: false,
+      lives: 3,
+      score: 0,
+    };
+
+    const obstacles = [];
+    let animationFrame;
+    let gameRunning = true;
+
+    function getRandomColor() {
+      const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    function createObstacle() {
+      const shape = Math.random() > 0.5 ? 'rectangle' : 'snake';
+      const size = 20 + Math.random() * 30;
+      obstacles.push({
+        x: canvas.width,
+        y: player.y + player.height - size,
+        width: shape === 'rectangle' ? size : 0,
+        height: shape === 'rectangle' ? size : 0,
+        radius: shape === 'circle' ? size / 2 : 0,
+        speed: 5,
+        color: shape === 'snake' ? 'green' : getRandomColor(),
+        shape,
+      });
+    }
+
+    function drawObstacles() {
+      obstacles.forEach(obstacle => {
+        ctx.fillStyle = obstacle.color;
+        if (obstacle.shape === 'rectangle') {
+          ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        } else if (obstacle.shape === 'snake') {
+          // Draw a simple snake-like shape
+          const snakeSegments = 5;
+          const segmentWidth = 10;
+          const segmentHeight = 5;
+          for (let i = 0; i < snakeSegments; i++) {
+            ctx.fillRect(obstacle.x - i * segmentWidth, obstacle.y + (i % 2 === 0 ? 0 : segmentHeight), segmentWidth, segmentHeight);
+          }
+        }
+      });
+    }
+
+    function updateObstacles() {
+      obstacles.forEach(obstacle => {
+        obstacle.x -= obstacle.speed;
+      });
+
+      obstacles.filter(obstacle => obstacle.x + (obstacle.width || obstacle.radius * 2) > 0);
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = player.color;
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    function checkCollisions() {
+      obstacles.forEach((obstacle, index) => {
+        const collision =
+          obstacle.shape === 'rectangle' || obstacle.shape === 'snake'
+            ? player.x < obstacle.x + obstacle.width &&
+              player.x + player.width > obstacle.x &&
+              player.y < obstacle.y + obstacle.height &&
+              player.y + player.height > obstacle.y
+            : Math.hypot(player.x + player.width / 2 - (obstacle.x + obstacle.radius),
+                         player.y + player.height / 2 - (obstacle.y + obstacle.radius)) < obstacle.radius + player.width / 2;
+
+        if (collision) {
+          obstacles.splice(index, 1);
+          player.lives -= 1;
+          livesElement.textContent = `Lives: ${player.lives}`;
+
+          if (player.lives <= 0) {
+            endGame();
+          }
+        }
+      });
+    }
+
+    function endGame() {
+      gameRunning = false;
+      cancelAnimationFrame(animationFrame);
+      gameOverScreen.style.display = 'block';
+      finalScoreElement.textContent = player.score;
+    }
+
+    function restartGame() {
+      gameOverScreen.style.display = 'none';
+      player.lives = 3;
+      player.score = 0;
+      livesElement.textContent = `Lives: ${player.lives}`;
+      scoreElement.textContent = `Score: ${player.score}`;
+      obstacles.length = 0;
+      gameRunning = true;
+      animationFrame = requestAnimationFrame(gameLoop);
+    }
+
+    let keys = {};
+    window.addEventListener('keydown', e => (keys[e.key] = true));
+    window.addEventListener('keyup', e => (keys[e.key] = false));
+
+    function updatePlayer() {
+      if (!player.isJumping && keys[' ']) {
+        player.isJumping = true;
+        player.velocityY = -player.jumpSpeed;
+      }
+
+      if (player.isJumping) {
+        player.velocityY += player.gravity;
+        player.y += player.velocityY;
+
+        if (player.y >= canvas.height - 100) {
+          player.y = canvas.height - 100;
+          player.isJumping = false;
+        }
+      }
+    }
+
+    function gameLoop() {
+      if (!gameRunning) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawPlayer();
+      drawObstacles();
+
+      updatePlayer();
+      updateObstacles();
+      checkCollisions();
+
+      if (Math.random() < 0.02) createObstacle();
+
+      player.score += 1;
+      scoreElement.textContent = `Score: ${player.score}`;
+
+      animationFrame = requestAnimationFrame(gameLoop);
+    }
+
+    animationFrame = requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
