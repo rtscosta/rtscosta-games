@@ -300,12 +300,107 @@ footer{
 }
 
 @media(max-width:900px){
-  .games{grid-template-columns:1fr}
-  .card.large{grid-row:auto}
-  .logo{font-size:28px}
-  .hero h1{font-size:50px}
-  .card h2{font-size:40px}
-  header{gap:20px}
+  header{
+    display:block;
+    padding:42px 60px 36px;
+  }
+
+  .logo{
+    font-size:40px;
+    line-height:1;
+    letter-spacing:3px;
+    margin-bottom:35px;
+  }
+
+  .nav{
+    justify-content:flex-start;
+    gap:45px;
+    flex-wrap:wrap;
+  }
+
+  .nav button{
+    font-size:26px;
+  }
+
+  .hero{
+    padding:80px 60px 90px;
+  }
+
+  .hero h1{
+    font-size:72px;
+    line-height:.95;
+  }
+
+  .hero p{
+    font-size:36px;
+    line-height:1.25;
+  }
+
+  .games{
+    display:block;
+  }
+
+  .card{
+    display:block;
+    min-height:auto;
+    height:auto;
+    border:0;
+    border-top:8px dashed var(--black);
+  }
+
+  .card.large{
+    min-height:auto;
+  }
+
+  .card-content{
+    position:relative;
+    inset:auto;
+    padding:60px;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-start;
+    align-items:flex-start;
+  }
+
+  .game-image{
+    display:block;
+    width:100%;
+    max-width:none;
+    margin:0 0 45px 0;
+    border-radius:0 0 36px 36px;
+    border:8px solid var(--black);
+    box-shadow:18px 18px 0 rgba(0,0,0,0.35);
+  }
+
+  .badge{
+    position:relative;
+    display:inline-block;
+    top:auto;
+    left:auto;
+    margin-bottom:35px;
+    font-size:24px;
+    padding:22px 34px;
+  }
+
+  .card h2{
+    font-size:72px;
+    line-height:.95;
+  }
+
+  .card p{
+    font-size:32px;
+    line-height:1.35;
+  }
+
+  .play{
+    font-size:24px;
+    padding:22px 34px;
+  }
+
+  footer{
+    font-size:22px;
+    line-height:1.4;
+  }
 }
 </style>
 </head>
@@ -402,7 +497,7 @@ function scrollToGames(){
 function openPopup(type){
   gtag('event', 'popup_opened', {
     popup_name: type
-  });
+   });
 
   const popup = document.getElementById("popup");
   const title = document.getElementById("popup-title");
