@@ -87,8 +87,9 @@
 <div class="overlay" id="menu">
   <div class="tag">a 2D survival chase — round 2</div>
   <h1>FORSAKEN<span>:ESCAPE 2</span></h1>
-  <p class="sub">Pick your survivor and pick your nightmare. You and 4 bot survivors must outlast the
-     timer — but every killer now jumps, climbs, and has a special ability. Protect yourself; the bots are on their own.</p>
+  <p class="sub">Pick your survivor and pick your nightmare. To win an arena you must collect <b style="color:var(--gold)">EVERY coin</b>
+     and still be alive when the timer runs out. Every killer jumps, climbs, and has a special ability — and if all 4 bot
+     survivors fall, you get 30 seconds as the last one standing… with the music to match.</p>
 
   <div class="lbl">Choose your survivor</div>
   <div class="row" id="survRow"></div>
@@ -242,6 +243,14 @@ function startMusic(){
       music.gain.connect(AC.destination);
       const lp = AC.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1100; lp.Q.value=.8;
       lp.connect(music.gain); music.bassBus = lp;
+      /* distorted "guitar" bus for last-stand rock mode */
+      const ws = AC.createWaveShaper();
+      const n=512, curve=new Float32Array(n);
+      for(let i=0;i<n;i++){ const x=i/(n-1)*2-1; curve[i]=Math.tanh(4*x); }
+      ws.curve=curve;
+      const gG = AC.createGain(); gG.gain.value=.7;
+      ws.connect(gG); gG.connect(music.gain);
+      music.guitarBus = ws;
     }
     if(!music.noise){
       const len=Math.floor(AC.sampleRate*0.4), buf=AC.createBuffer(1,len,AC.sampleRate), d=buf.getChannelData(0);
@@ -256,6 +265,16 @@ function startMusic(){
 function oscAt(t,hz,dur,wave,vol,dest,detune){
   const o=AC.createOscillator(), g=AC.createGain();
   o.type=wave; o.frequency.value=hz; if(detune) o.detune.value=detune;
+  g.gain.setValueAtTime(vol,t);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(dest);
+  o.start(t); o.stop(t+dur+0.03);
+}
+function slideAt(t,hzA,hzB,dur,wave,vol,dest){
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type=wave;
+  o.frequency.setValueAtTime(hzA,t);
+  o.frequency.linearRampToValueAtTime(hzB,t+dur*0.85);
   g.gain.setValueAtTime(vol,t);
   g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
   o.connect(g); g.connect(dest);
@@ -296,8 +315,49 @@ function tickMusic(){
     if(!playing && state.scene!=="pause"){ music.nextT=AC.currentTime+0.1; music.step=0; return; }
     if(!music.enabled) return;
     const cfg = MUSIC_CFG[state.level % MUSIC_CFG.length];
-    const spb = 60/cfg.bpm/4;                              /* one 16th note */
     const panic = state.timeLeft>0 && state.timeLeft<10;   /* final 10 seconds */
+    if(state.lastStand){
+      /* ============ LAST ONE STANDING: "GRAVE CHASE" ============
+         An original high-intensity pursuit theme: 178 BPM galloping
+         kick pattern, distorted power chords moving in sinister
+         half-steps (i – i – bII – bIII), a falling siren lead and a
+         low droning root underneath. Built to feel like being hunted. */
+      const bpm=178, spb=60/bpm/4;
+      const RIFF=[0,0,1,3];                       /* bar roots: i i bII bIII */
+      while(music.nextT < AC.currentTime + 0.16){
+        const s=music.step%64, bar=(s/16)|0, st=s%16, t=music.nextT;
+        const off=RIFF[bar];
+        /* drums — relentless gallop */
+        if(st===0||st===3||st===6||st===8||st===11||st===14) kick808(t,.17);
+        if(st===4||st===12){ noiseAt(t,.16,.085,.003); noiseAt(t+.01,.12,.05,.002); }
+        if(st%2===0) noiseAt(t,.03,.03);
+        if(panic && st%2===1) noiseAt(t,.018,.02);
+        /* power-chord chugs on the gallop, through distortion */
+        if(st===0||st===3||st===6||st===8||st===11||st===14){
+          const accent = st===0;
+          const dur=accent?spb*2.8:spb*1.2, v=accent?.058:.04;
+          for(const semis of [0,7,12]){
+            const hz=midiHz(cfg.root-12+off+semis);
+            oscAt(t,hz,dur,"sawtooth",v,music.guitarBus,-7);
+            oscAt(t,hz,dur,"sawtooth",v*.85,music.guitarBus,7);
+          }
+        }
+        /* low drone root under each bar */
+        if(st===0) oscAt(t, midiHz(cfg.root-24+off), spb*16, "sawtooth", .03, music.bassBus);
+        /* falling siren lead — a long slide down a tritone, bars 2 & 4 */
+        if((bar===1||bar===3) && st===0){
+          const top=midiHz(cfg.root+24+off);
+          slideAt(t, top, top/Math.pow(2,6/12), spb*12, "square", .03, music.guitarBus);
+          slideAt(t, top*1.005, top/Math.pow(2,6/12)*1.005, spb*12, "square", .02, music.guitarBus);
+        }
+        /* stabbing high pulse every offbeat in the final bar of the loop */
+        if(bar===3 && st%4===2)
+          oscAt(t, midiHz(cfg.root+12+off), spb*.8, "square", .032, music.guitarBus);
+        music.step++; music.nextT+=spb;
+      }
+      return;
+    }
+    const spb = 60/cfg.bpm/4;                              /* one 16th note */
     while(music.nextT < AC.currentTime + 0.16){
       const s = music.step%64, bar = (s/16)|0, st16 = s%16, t = music.nextT;
       const off = PROG[bar], E = cfg.energy;
@@ -532,7 +592,15 @@ const SURVIVORS = [
 { id:"emo", name:"EMO", desc:"too cool to scream",
   pal:{h:"#15151a",H:"#e8e2d8",e:"#1a1a1a",m:"#1a1a1a",T:"#1c1c24",c:"#3a6ad9",A:"#1c1c24",n:"#e8e2d8",L:"#1c1c24",R:"#1c1c24",f:"#0a0a0d",g:"#0a0a0d",x:"#1a1a1a"},
   edits:[[3,4,"hHHHHHHh"],[4,4,"hHHHHHHh"],[5,4,"heHHHHeh"],[7,5,"xx..xx"],
-         [12,6,"Tccc"],[13,6,"cccT"]] }
+         [12,6,"Tccc"],[13,6,"cccT"]] },
+{ id:"jane", name:"JANE DOE", desc:"the wide-brim wanderer",
+  pal:{b:"#14141d",h:"#8a3aa8",H:"#c6cac4",e:"#1a1a1a",m:"#1a1a1a",T:"#c8b88a",c:"#c8b88a",
+       A:"#1c1c2c",n:"#c6cac4",L:"#1c1c2c",R:"#1c1c2c",f:"#0d0d14",g:"#0d0d14",
+       r:"#c0303a",s:"#2a2a44",x:"#1a1a1a"},
+  edits:[[0,4,"bbbbbbbb"],[1,3,"bbbbbbbbbb"],[2,2,"bbbbbbbbbbbb"],
+         [3,3,"hhHHHHHhh"],[4,4,"hHHHHHHh"],[5,4,"hHHHHHHh"],
+         [6,6,"xxxx"],[7,5,"x"],[7,10,"x"],
+         [10,5,"s"],[11,6,"s"],[11,9,"rr"],[12,7,"s"],[12,9,"rr"],[13,8,"s"],[14,9,"s"]] }
 ];
 
 /* ----- KILLER ROSTER (image-1 inspired) with special abilities ----- */
@@ -555,13 +623,13 @@ const KILLERS = [
   pal:{h:"#efe9d6",H:"#efe9d6",e:"#1a1a1a",m:"#1a1a1a",T:"#16161c",c:"#16161c",A:"#0d0d12",n:"#efe9d6",L:"#3a6ad9",R:"#3a6ad9",f:"#15151a",g:"#15151a",r:"#d92b2b",x:"#1a1a1a"},
   edits:[[4,5,"rr"],[5,4,"rrHHHHxH"],[7,5,"xxxxxx"],
          [11,9,"rr"],[12,9,"rr"]] },
-{ id:"noli", name:"NOLI", speed:144, abil:"teleport", cd:6,
+{ id:"noli", name:"1X1X1X1", speed:144, abil:"teleport", cd:6,
   abilDesc:"TELEPORT — blinks through the dark to appear beside you",
   glow:"rgba(72,224,106,.3)", proj:null,
   pal:{h:"#0c140d",H:"#0c140d",e:"#0c140d",m:"#0c140d",T:"#0c140d",c:"#2ee05a",A:"#081008",n:"#081008",L:"#081008",R:"#081008",f:"#050a05",g:"#050a05",k:"#2ee05a",r:"#e03a3a",x:"#16241a"},
   edits:[[0,4,"k.k..k.k"],[1,4,"kkkkkkkk"],[5,4,"HrHHHHkH"],[4,9,"r"],[6,9,"r"],[5,8,"r"],[5,10,"r"],
          [10,4,"Tc.cc.cT"],[11,4,"TccccccT"],[12,4,"Tc.cc.cT"],[13,4,"TccccccT"],[14,4,"Tc.cc.cT"]] },
-{ id:"g666", name:"GUEST 666", speed:148, abil:"rage", cd:7,
+{ id:"g666", name:"NOLI", speed:148, abil:"rage", cd:7,
   abilDesc:"RAGE — erupts with fury and becomes terrifyingly fast",
   glow:"rgba(160,80,255,.3)", proj:null,
   pal:{h:"#241830",H:"#241830",e:"#0a0a0d",m:"#0a0a0d",T:"#1b1024",c:"#8a8a96",A:"#140a1c",n:"#140a1c",L:"#140a1c",R:"#140a1c",f:"#0a0510",g:"#0a0510",S:"#dcd8e0",x:"#0a0a0d"},
@@ -571,6 +639,20 @@ const KILLERS = [
 /* build all sprites */
 SURVIVORS.forEach(s=> s.spr = buildSprite(applyEdits(BASE_GRID, s.edits||[]), s.pal));
 KILLERS.forEach(k=>  k.spr = buildSprite(applyEdits(BASE_GRID, k.edits||[]), k.pal));
+
+/* ----- custom LAST ONE STANDING matchups (killerId|survivorId) ----- */
+const MATCHUPS = {
+  "c00l|burger": "He wants seconds. You're on the menu.",
+  "john|jane":   "Doe versus Doe. This stays in the family.",
+  "noli|bacon":  "1x1x1x1 has flagged the bacon for deletion.",
+  "jason|noob":  "The oldest chase in the game. Run, noob.",
+  "g666|emo":    "Noli only smiles when it's over.",
+  "c00l|noob":   "Two classics. One survivor.",
+  "john|agent":  "He knows your real name, agent.",
+  "jason|worker":"No hard hat can save you now.",
+  "noli|emo":    "Even the void thinks you're dramatic.",
+  "g666|jane":   "Tip your hat. It's the last thing you'll do."
+};
 
 /* ============================ INPUT ============================ */
 const keys = {left:false,right:false,up:false,down:false,jump:false};
@@ -599,13 +681,24 @@ function bindTouch(id, key, alsoJump){
 }
 bindTouch("tL","left"); bindTouch("tR","right");
 bindTouch("tU","up",true); bindTouch("tD","down"); bindTouch("tJ","jump");
+/* Guarantee on-screen controllers on mobile / touch devices, even when
+   the CSS media query can't tell (some tablets and hybrids lie). */
+function refreshTouchUI(){
+  try{
+    const touch = ('ontouchstart' in window) || (navigator.maxTouchPoints||0)>0 || (navigator.msMaxTouchPoints||0)>0;
+    document.getElementById("touchUI").style.display = touch ? "block" : "";
+  }catch(e){}
+}
+refreshTouchUI();
+addEventListener("touchstart", function once(){ document.getElementById("touchUI").style.display="block"; removeEventListener("touchstart",once); }, {passive:true});
 
 /* ============================ STATE ============================ */
 const state = {
   scene:"menu", level:0, killerN:2, killerChoice:-1, skin:0,
   timeLeft:0, coins:0, totalCoins:0,
   map:null, coinList:[], killers:[], bots:[], projectiles:[], spikes:[],
-  particles:[], ladders:[], shake:0, elapsed:0
+  particles:[], ladders:[], shake:0, elapsed:0, lastStand:false, lastStandT:0,
+  matchTitle:"", matchTag:""
 };
 const player = {
   x:0,y:0,w:22,h:42,vx:0,vy:0,onGround:false,onLadder:false,
@@ -688,6 +781,7 @@ function loadLevel(i){
   state.coinList=[]; state.killers=[]; state.bots=[];
   state.projectiles=[]; state.spikes=[]; state.particles=[];
   state.timeLeft=L.time; state.coins=0; state.shake=0; state.elapsed=0;
+  state.lastStand=false; state.lastStandT=0; state.matchTitle=""; state.matchTag="";
   let pSpawn = {x:TILE*2, y:TILE*14};
   const kSpawns=[], standSpots=[];
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
@@ -1136,26 +1230,52 @@ function drawProjectiles(t){
 }
 function drawHUD(){
   cx.fillStyle="rgba(8,7,14,.72)"; cx.fillRect(0,0,W,34);
-  cx.fillStyle="rgba(224,58,58,.6)"; cx.fillRect(0,33,W,1);
+  cx.fillStyle=state.lastStand?"rgba(255,60,60,.9)":"rgba(224,58,58,.6)"; cx.fillRect(0,33,W,1);
   for(let i=0;i<3;i++){
     cx.fillStyle=i<player.hp?"#e03a3a":"#3a2030";
     const hx=14+i*24;
     cx.fillRect(hx,9,7,7); cx.fillRect(hx+9,9,7,7);
     cx.fillRect(hx+2,14,12,7); cx.fillRect(hx+5,21,6,4);
   }
-  /* bots alive */
   const alive=state.bots.filter(b=>!b.dead).length;
-  cx.font="bold 12px 'Courier New'"; cx.fillStyle="#7ee08a";
-  cx.fillText("BOTS "+alive+"/4", 96, 22);
+  cx.font="bold 12px 'Courier New'";
+  cx.fillStyle=alive===0?"#ff5050":"#7ee08a";
+  cx.fillText(alive===0?"LAST ONE":"BOTS "+alive+"/4", 96, 22);
+  const total=state.coinList.length, allCoins=state.coins>=total;
   const tl=Math.max(0,state.timeLeft);
   cx.font="bold 18px 'Courier New'"; cx.textAlign="center";
-  cx.fillStyle = tl<10 ? (Math.floor(state.elapsed*4)%2?"#e03a3a":"#fff") : "#f2ecd8";
-  cx.fillText("SURVIVE  "+Math.ceil(tl)+"s", W/2, 23);
+  cx.fillStyle = tl<10 ? (Math.floor(state.elapsed*4)%2?"#e03a3a":"#fff") : (allCoins?"#48e06a":"#f2ecd8");
+  cx.fillText((allCoins?"✓ SURVIVE  ":"SURVIVE  ")+Math.ceil(tl)+"s", W/2, 23);
   cx.textAlign="right"; cx.font="bold 13px 'Courier New'";
   cx.fillStyle="#9b94b8";
-  cx.fillText(LEVELS[state.level].name+"  •  "+(state.level+1)+"/5", W-110, 22);
-  cx.fillStyle="#ffce3a"; cx.fillText("● "+state.coins, W-16, 22);
+  cx.fillText(LEVELS[state.level].name+"  •  "+(state.level+1)+"/5", W-130, 22);
+  cx.fillStyle=allCoins?"#48e06a":"#ffce3a";
+  cx.fillText("● "+state.coins+"/"+total, W-16, 22);
   cx.textAlign="left";
+  /* objective hint + last-stand banner */
+  if(!allCoins && state.elapsed<6){
+    cx.font="bold 12px 'Courier New'"; cx.textAlign="center";
+    cx.fillStyle="rgba(255,206,58,"+Math.min(1,6-state.elapsed)+")";
+    cx.fillText("COLLECT EVERY COIN AND OUTLAST THE TIMER", W/2, 50);
+    cx.textAlign="left";
+  }
+  if(state.lastStandT>0){
+    const a=Math.min(1,state.lastStandT);
+    cx.textAlign="center";
+    cx.fillStyle="rgba(0,0,0,"+(.55*a)+")"; cx.fillRect(0,H/2-58,W,104);
+    cx.font="bold 13px 'Courier New'";
+    cx.fillStyle="rgba(255,206,58,"+a+")";
+    cx.fillText("LAST ONE STANDING", W/2, H/2-32);
+    cx.font="bold 32px 'Courier New'";
+    cx.fillStyle="rgba(255,50,50,"+a+")";
+    cx.fillText(state.matchTitle||"YOU VS THEM", W/2, H/2+2);
+    cx.font="bold 13px 'Courier New'";
+    cx.fillStyle="rgba(242,236,216,"+a+")";
+    cx.fillText(state.matchTag||"", W/2, H/2+24);
+    cx.fillStyle="rgba(155,148,184,"+a+")";
+    cx.fillText("30 SECONDS", W/2, H/2+40);
+    cx.textAlign="left";
+  }
 }
 function render(t){
   const L=LEVELS[state.level];
@@ -1196,12 +1316,12 @@ function showIntro(){
   const kname = state.killerChoice>=0 ? KILLERS[state.killerChoice].name : "A MIX OF KILLERS";
   $("introTag").textContent="Arena "+(state.level+1)+" / 5 — "+state.killerN+"× "+kname;
   $("introName").textContent=L.name;
-  $("introDesc").textContent=L.desc;
+  $("introDesc").textContent=L.desc+" Collect every coin AND outlast the timer to win.";
   $("introAbil").textContent = state.killerChoice>=0 ? KILLERS[state.killerChoice].abilDesc : "Each killer brings its own special ability. Watch for all of them.";
   state.scene="intro"; show("intro");
 }
 function startLevel(){ loadLevel(state.level); state.scene="play"; show(null); }
-function endRun(won){
+function endRun(won, reason){
   if(won){
     sfx.clear();
     const saved=state.bots.filter(b=>!b.dead).length;
@@ -1209,13 +1329,14 @@ function endRun(won){
       $("victoryStats").textContent="Coins: "+state.totalCoins+"  •  bots alive at the end: "+saved+"/4";
       state.scene="victory"; show("victory");
     } else {
-      $("clearStats").textContent=LEVELS[state.level].name+" cleared  •  coins: "+state.coins+"  •  bots alive: "+saved+"/4";
+      $("clearStats").textContent=LEVELS[state.level].name+" cleared  •  every coin collected  •  bots alive: "+saved+"/4";
       state.scene="clear"; show("clear");
     }
   } else {
-    $("deadStats").textContent="Arena "+(state.level+1)+" — you lasted "+
+    $("deadStats").textContent = reason ||
+      ("Arena "+(state.level+1)+" — you lasted "+
       Math.ceil(LEVELS[state.level].time-state.timeLeft)+"s against "+
-      state.killers.length+(state.killers.length>1?" killers.":" killer.");
+      state.killers.length+(state.killers.length>1?" killers.":" killer."));
     state.scene="dead"; show("dead");
   }
 }
@@ -1298,12 +1419,34 @@ function frame(now){
   if(state.scene==="play"){
     state.elapsed+=dt;
     state.timeLeft-=dt;
+    state.lastStandT=Math.max(0,state.lastStandT-dt);
     updatePlayer(dt);
     for(const b of state.bots) updateBot(b,dt);
     for(const k of state.killers){ updateKiller(k,dt); if(state.scene!=="play") break; }
     if(state.scene==="play"){ updateProjectiles(dt); updateSpikes(dt); }
     updateParticles(dt);
-    if(state.scene==="play" && state.timeLeft<=0) endRun(true);
+    /* LAST ONE STANDING: all bots dead, you're alive → 30s, matchup banner, chase theme */
+    if(state.scene==="play" && !state.lastStand && state.bots.length && state.bots.every(b=>b.dead)){
+      state.lastStand=true; state.lastStandT=3.5;
+      state.timeLeft=Math.min(state.timeLeft,30);
+      state.shake=.5;
+      /* who's the nemesis? nearest killer at this moment */
+      let nk=state.killers[0], nd=1e9;
+      for(const k of state.killers){
+        const d=Math.hypot(k.x-player.x,k.y-player.y);
+        if(d<nd){nd=d;nk=k;}
+      }
+      const sv=SURVIVORS[state.skin];
+      state.matchTitle = (nk?nk.type.name:"THE KILLERS")+"  VS  "+sv.name;
+      state.matchTag = (nk && MATCHUPS[nk.type.id+"|"+sv.id]) || "No one is coming. Outlast them.";
+      try{ [110,110,131,110].forEach((f,i)=>setTimeout(()=>beep(f,.22,"sawtooth",.09),i*130)); }catch(e){}
+    }
+    /* WIN only when timer is out AND every coin is collected */
+    if(state.scene==="play" && state.timeLeft<=0){
+      const left=state.coinList.filter(c=>!c.got).length;
+      if(left===0) endRun(true);
+      else endRun(false, "Time ran out with "+left+" coin"+(left>1?"s":"")+" still uncollected. You must grab ALL the coins AND outlast the timer to win.");
+    }
   }
   if(state.map) render(state.elapsed);
   else{
