@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatStupidity</title>
+
+<!-- SEO -->
+<meta name="description" content="ChatStupidity is a fun browser game website with weird, colorful, pixel-style games you can play instantly. No downloads. No installs. Just chaos.">
+<meta name="keywords" content="ChatStupidity, browser games, free games, pixel games, funny games, stupid games, online games, Forsaken Escape 2">
+<meta name="author" content="ChatStupidity">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://chatstupidity.com/">
+
+<!-- GEO / Location -->
+<meta name="geo.region" content="US-FL">
+<meta name="geo.placename" content="Florida">
+<meta name="geo.position" content="28.5383;-81.3792">
+<meta name="ICBM" content="28.5383, -81.3792">
+
+<!-- Open Graph -->
+<meta property="og:title" content="ChatStupidity — Stupid Games. Smart Fun.">
+<meta property="og:description" content="Play weird, colorful browser games instantly. No downloads. No installs. Just chaos.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://chatstupidity.com/">
+<meta property="og:image" content="https://chatstupidity.com/img/forsaken-escape.png">
+<meta property="og:site_name" content="ChatStupidity">
+
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ChatStupidity — Stupid Games. Smart Fun.">
+<meta name="twitter:description" content="Weird browser games you can play instantly.">
+<meta name="twitter:image" content="https://chatstupidity.com/img/forsaken-escape.png">
+
+<!-- Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "ChatStupidity",
+  "url": "https://chatstupidity.com/",
+  "description": "ChatStupidity is a fun browser game website with weird, colorful, pixel-style games you can play instantly.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "ChatStupidity",
+    "url": "https://chatstupidity.com/"
+  },
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://chatstupidity.com/?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "ChatStupidity Games",
+  "itemListElement": [
+    {
+      "@type": "VideoGame",
+      "position": 1,
+      "name": "Forsaken Escape 2",
+      "url": "https://chatstupidity.com/forsaken-escape.html",
+      "image": "https://chatstupidity.com/img/forsaken-escape.png",
+      "description": "Survive killers, collect every coin, and escape five deadly pixel arenas.",
+      "gamePlatform": "Web Browser",
+      "applicationCategory": "Game"
+    }
+  ]
+}
+</script>
+
+<style>
+:root{
+  --yellow:#F5D329;
+  --cyan:#31C8D7;
+  --green:#52D89C;
+  --pink:#FF4C85;
+  --orange:#FF7A2F;
+  --cream:#F8E3BF;
+  --black:#151515;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  background:var(--black);
+  font-family:Arial, Helvetica, sans-serif;
+  overflow-x:hidden;
+}
+
+header{
+  background:var(--yellow);
+  border-bottom:4px dashed var(--black);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:20px 30px;
+  flex-wrap:wrap;
+}
+
+.logo{
+  font-size:40px;
+  font-weight:900;
+  letter-spacing:3px;
+  color:var(--black);
+  text-transform:uppercase;
+  transform:rotate(-2deg);
+}
+
+.logo span{color:var(--pink)}
+
+.nav{
+  display:flex;
+  gap:30px;
+}
+
+.nav button{
+  background:none;
+  border:0;
+  color:var(--black);
+  font-weight:900;
+  text-transform:uppercase;
+  font-size:14px;
+  cursor:pointer;
+}
+
+.nav button:hover{color:var(--pink)}
+
+.hero{
+  background:var(--yellow);
+  padding:50px 30px;
+  border-bottom:4px dashed var(--black);
+}
+
+.hero h1{
+  font-size:clamp(50px,8vw,90px);
+  color:var(--black);
+  line-height:0.9;
+  text-transform:uppercase;
+}
+
+.hero p{
+  margin-top:20px;
+  max-width:700px;
+  font-size:22px;
+  color:#333;
+  font-weight:600;
+}
+
+.games{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:4px;
+  background:var(--black);
+}
+
+.card{
+  position:relative;
+  overflow:hidden;
+  min-height:350px;
+  border:2px solid var(--black);
+  cursor:pointer;
+  transition:0.3s;
+  text-decoration:none;
+}
+
+.card:hover{transform:scale(0.98)}
+
+.card.large{grid-row:span 2}
+
+.card-content{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  padding:30px;
+}
+
+.game-image{
+  width:100%;
+  max-width:420px;
+  border-radius:28px;
+  border:5px solid var(--black);
+  box-shadow:10px 10px 0 rgba(0,0,0,0.35);
+  margin-bottom:25px;
+  image-rendering:pixelated;
+}
+
+.card h2{
+  font-size:50px;
+  line-height:0.9;
+  color:var(--black);
+  text-transform:uppercase;
+}
+
+.card p{
+  margin-top:15px;
+  color:var(--black);
+  font-weight:700;
+  font-size:18px;
+}
+
+.forsaken{background:linear-gradient(135deg,#FF4C85,#FF7A2F)}
+.money{background:var(--green)}
+.coming{background:var(--cyan)}
+.apple{background:var(--cream)}
+.bad{background:var(--yellow)}
+
+.badge{
+  position:absolute;
+  top:20px;
+  left:20px;
+  background:var(--black);
+  color:white;
+  padding:8px 14px;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:2px;
+  z-index:2;
+}
+
+.play{
+  display:inline-block;
+  margin-top:25px;
+  background:var(--black);
+  color:white;
+  padding:14px 20px;
+  font-weight:900;
+  text-transform:uppercase;
+  width:fit-content;
+}
+
+footer{
+  background:var(--yellow);
+  border-top:4px dashed var(--black);
+  padding:40px;
+  text-align:center;
+  color:var(--black);
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.popup{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.75);
+  z-index:50;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+
+.popup-box{
+  max-width:560px;
+  background:var(--yellow);
+  border:5px solid var(--black);
+  border-radius:24px;
+  padding:35px;
+  box-shadow:12px 12px 0 var(--pink);
+  color:var(--black);
+  text-align:center;
+}
+
+.popup-box h2{
+  font-size:42px;
+  text-transform:uppercase;
+  margin-bottom:15px;
+}
+
+.popup-box p{
+  font-size:20px;
+  font-weight:700;
+  line-height:1.4;
+}
+
+.close{
+  margin-top:25px;
+  background:var(--black);
+  color:white;
+  border:0;
+  padding:14px 25px;
+  font-weight:900;
+  cursor:pointer;
+  text-transform:uppercase;
+}
+
+@media(max-width:900px){
+  .games{grid-template-columns:1fr}
+  .card.large{grid-row:auto}
+  .logo{font-size:28px}
+  .hero h1{font-size:50px}
+  .card h2{font-size:40px}
+  header{gap:20px}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">CHAT<span>STUPIDITY</span></div>
+
+  <nav class="nav">
+    <button onclick="scrollToGames()">Games</button>
+    <button onclick="openPopup('about')">About</button>
+    <button onclick="openPopup('contact')">Contact</button>
+  </nav>
+</header>
+
+<section class="hero">
+  <h1>Stupid Games.<br>Smart Fun.</h1>
+  <p>No downloads. No installs. Just chaos with buttons.</p>
+</section>
+
+<section class="games" id="games">
+
+  <a href="forsaken-escape.html" class="card large forsaken">
+    <div class="badge">PLAY NOW</div>
+
+    <div class="card-content">
+      <img class="game-image" src="img/forsaken-escape.png" alt="Forsaken Escape 2">
+
+      <h2>Forsaken<br>Escape 2</h2>
+
+      <p>
+        Survive killers. Collect every coin.
+        Escape five deadly arenas.
+      </p>
+
+      <div class="play">Launch Game →</div>
+    </div>
+  </a>
+
+  <div onclick="funPopup('mystery')" class="card money">
+    <div class="badge">COMING SOON</div>
+    <div class="card-content">
+      <h2>Mystery<br>Game</h2>
+      <p>Another terrible idea that somehow became fun.</p>
+    </div>
+  </div>
+
+  <div onclick="funPopup('unknown')" class="card apple">
+    <div class="badge">SOON</div>
+    <div class="card-content">
+      <h2>????</h2>
+      <p>We don't know what this is yet. That is the plan.</p>
+    </div>
+  </div>
+
+  <div onclick="funPopup('stupidity')" class="card bad">
+    <div class="badge">NEW</div>
+    <div class="card-content">
+      <h2>More<br>Stupidity</h2>
+      <p>Because one stupid game is not enough damage.</p>
+    </div>
+  </div>
+
+  <div onclick="funPopup('secret')" class="card coming">
+    <div class="badge">SOON</div>
+    <div class="card-content">
+      <h2>Secret<br>Project</h2>
+      <p>You are not ready. We are also not ready.</p>
+    </div>
+  </div>
+
+</section>
+
+<footer>
+  © ChatStupidity.com • Certified Stupid Since Today
+</footer>
+
+<div class="popup" id="popup">
+  <div class="popup-box">
+    <h2 id="popup-title"></h2>
+    <p id="popup-text"></p>
+    <button class="close" onclick="closePopup()">Close This Nonsense</button>
+  </div>
+</div>
+
+<script>
+let lastMessages = {};
+
+function scrollToGames(){
+  document.getElementById("games").scrollIntoView({behavior:"smooth"});
+}
+
+function openPopup(type){
+  const popup = document.getElementById("popup");
+  const title = document.getElementById("popup-title");
+  const text = document.getElementById("popup-text");
+
+  if(type === "about"){
+    title.innerText = "About";
+    text.innerText = "ChatStupidity is where weird little games come to live. Some are smart. Most are questionable. All of them are here because someone said: wait... this is stupid... let's make it.\n\nMade by FelCos08.";
+  }
+
+  if(type === "contact"){
+    title.innerText = "Contact";
+    text.innerText = "Want to send an idea? Found a bug? Need to complain to the manager? Too bad. The manager is probably stuck playing Forsaken Escape. Email coming soon.";
+  }
+
+  popup.style.display = "flex";
+}
+
+function funPopup(type){
+  const popup = document.getElementById("popup");
+  const title = document.getElementById("popup-title");
+  const text = document.getElementById("popup-text");
+
+  const messages = {
+    mystery: [
+      "This game is still cooking. Unfortunately, the chef is a raccoon.",
+      "You clicked too early. The game is still putting on its shoes.",
+      "Mystery Game is not ready. It is currently hiding under the bed.",
+      "This game will arrive soon. Probably. Maybe. Do not tell anyone.",
+      "The developer opened the file, stared at it, and went to get snacks.",
+      "This game is 12% complete and 88% confused.",
+      "Coming soon. The pixels are still arguing with each other.",
+      "This game failed its first IQ test but passed the vibe check.",
+      "Not ready yet. One button works, but it only screams.",
+      "The mystery is that we do not know what the game is.",
+      "Game loading... emotionally.",
+      "This idea was approved by a council of silly ducks.",
+      "The game is currently trapped inside another game.",
+      "Soon means soon. In game developer language, that means chaos.",
+      "This game asked for five more minutes.",
+      "We found the game, but it ran away.",
+      "This one is being built with 40% code and 60% bad decisions.",
+      "The loading bar got tired and sat down.",
+      "You unlocked nothing. But you looked cool doing it.",
+      "Please come back later. The game is still learning how to be a game."
+    ],
+    unknown: [
+      "Nobody knows what this is. That includes us.",
+      "This box contains either a game or a sandwich.",
+      "???? is not a bug. It is a lifestyle.",
+      "You clicked the question marks. Bold move.",
+      "The title is missing because the game refused to introduce itself.",
+      "This project has entered witness protection.",
+      "The game is so secret it forgot its own name.",
+      "We tried naming it, but the keyboard ran away.",
+      "This may become a game. Or a toaster simulator.",
+      "Four question marks. Zero answers.",
+      "This box is powered by confusion.",
+      "The game is invisible. Very advanced technology.",
+      "You found the uncertainty zone.",
+      "This is where unfinished ideas go to stretch.",
+      "The game is thinking. Please do not interrupt it.",
+      "We asked the game what it was. It said: no.",
+      "This box is currently buffering its identity.",
+      "The answer is probably potato.",
+      "You clicked the unknown. The unknown clicked back.",
+      "One day this will make sense. Today is not that day."
+    ],
+    stupidity: [
+      "More stupidity is loading. Please lower your expectations.",
+      "Warning: this section may reduce productivity by 73%.",
+      "The stupidity machine is warming up.",
+      "You requested more stupidity. Brave choice.",
+      "This box is full of ideas that should not have survived.",
+      "Coming soon: more buttons, more chaos, fewer explanations.",
+      "The next game is being tested by a confused banana.",
+      "This feature passed zero safety inspections.",
+      "We added more stupidity. Then we added extra stupidity.",
+      "This game is not ready because it keeps laughing at itself.",
+      "Please wait while we locate the brain cell.",
+      "More stupidity has been scheduled for absolutely no reason.",
+      "The fun department approved this nonsense.",
+      "This section is under construction by tiny goblins.",
+      "The next game has been delayed by snacks.",
+      "This button does nothing useful, which is kind of the point.",
+      "You clicked more stupidity. It clicked back harder.",
+      "The game idea escaped. We are chasing it.",
+      "This area is legally silly.",
+      "Congratulations. You discovered premium nonsense."
+    ],
+    secret: [
+      "Secret Project is so secret even the website does not know it.",
+      "Access denied. Reason: too cool.",
+      "The secret project is hiding behind another secret project.",
+      "You are not ready. We are not ready. Nobody is ready.",
+      "This game is classified as extremely unserious.",
+      "The password is not password. We checked.",
+      "Secret loading... suspiciously.",
+      "A tiny wizard is guarding this game.",
+      "This project is currently wearing a fake mustache.",
+      "You found the secret door. It is locked by vibes.",
+      "Top secret. Bottom stupid.",
+      "This game is still in the microwave.",
+      "The secret project whispered: come back later.",
+      "We cannot show it yet. It is shy.",
+      "This project is made of pixels and questionable choices.",
+      "The secret is that there is no secret. Or is there?",
+      "The game is hiding in a folder named definitely_not_a_game.",
+      "You are now part of the secret. Sorry.",
+      "This box will self-destruct emotionally.",
+      "Secret Project says hi, then runs away."
+    ]
+  };
+
+  const titles = {
+    mystery: "Mystery Game",
+    unknown: "????",
+    stupidity: "More Stupidity",
+    secret: "Secret Project"
+  };
+
+  const list = messages[type];
+
+  let randomMessage = list[Math.floor(Math.random() * list.length)];
+
+  while(randomMessage === lastMessages[type]){
+    randomMessage = list[Math.floor(Math.random() * list.length)];
+  }
+
+  lastMessages[type] = randomMessage;
+
+  title.innerText = titles[type];
+  text.innerText = randomMessage;
+  popup.style.display = "flex";
+}
+
+function closePopup(){
+  document.getElementById("popup").style.display = "none";
+}
+</script>
+
+</body>
+</html>
