@@ -69,6 +69,8 @@
   #tU{left:84px;bottom:148px}#tD{left:84px;bottom:20px}
   #tJ{right:20px;bottom:96px;width:84px;height:84px;border-radius:50%;
     background:rgba(224,58,58,.45);border-color:rgba(224,58,58,.7);font-size:15px;letter-spacing:.1em}
+  #tQ{right:118px;bottom:28px;width:66px;height:66px;border-radius:50%;
+    background:rgba(255,206,58,.35);border-color:rgba(255,206,58,.6);font-size:20px}
   @media (hover:hover) and (pointer:fine){ #touchUI{display:none} }
 </style>
 </head>
@@ -81,6 +83,7 @@
   <button class="tbtn" id="tU" aria-label="up / climb">▲</button>
   <button class="tbtn" id="tD" aria-label="down / drop">▼</button>
   <button class="tbtn" id="tJ" aria-label="jump">JUMP</button>
+  <button class="tbtn" id="tQ" aria-label="ability">Q</button>
 </div>
 
 <!-- title / lobby -->
@@ -217,7 +220,13 @@ const sfx = {
   spike: ()=>{beep(95,.3,"sawtooth",.09); setTimeout(()=>beep(70,.2,"sawtooth",.07),60);},
   tele : ()=>{beep(900,.12,"sine",.06); setTimeout(()=>beep(450,.15,"sine",.05),70);},
   botD : ()=>{beep(300,.2,"sawtooth",.06); setTimeout(()=>beep(150,.25,"sawtooth",.05),90);},
-  dash : ()=>beep(180,.18,"sawtooth",.07)
+  dash : ()=>beep(180,.18,"sawtooth",.07),
+  stun : ()=>{beep(1100,.1,"square",.06); setTimeout(()=>beep(700,.12,"square",.05),60); setTimeout(()=>beep(400,.18,"square",.04),130);},
+  swing: ()=>beep(260,.09,"sawtooth",.05),
+  build: ()=>{beep(180,.08,"square",.05); setTimeout(()=>beep(240,.08,"square",.05),70);},
+  shoot: ()=>beep(950,.07,"square",.06),
+  vanish:()=>{beep(600,.12,"sine",.05); setTimeout(()=>beep(300,.18,"sine",.04),80);},
+  noAbil:()=>{beep(220,.15,"sine",.04); setTimeout(()=>beep(180,.25,"sine",.04),140);}
 };
 
 /* ---------------- MUSIC: intense club / phonk engine ----------------
@@ -636,6 +645,18 @@ const KILLERS = [
   edits:[[2,2,"hh.hhhhhh.hh"],[3,8,"SSSS"],[4,8,"SSSS"],[5,8,"SxSS"],[6,8,"SSSS"],[7,8,"xSxS"],
          [10,5,"c..cc..c"],[12,4,"Tc.cc.cT"],[13,4,"TccccccT"]] }
 ];
+/* ----- survivor abilities (Q key) ----- */
+const SURV_ABIL = {
+  noob:  {abil:null,    cd:1,  short:"—",      text:"NO ABILITY — noobs run on pure luck."},
+  worker:{abil:"build", cd:7,  short:"BUILD",  text:"Q: BUILD — drops a wooden platform under your feet (lasts 6s)."},
+  bacon: {abil:"sword", cd:8,  short:"SWORD",  text:"Q: SWORD SWING — stuns killers in front of you for 5 seconds."},
+  burger:{abil:"decoy", cd:12, short:"DECOY",  text:"Q: VANISH — turn invisible for 5s and leave behind a clone decoy."},
+  agent: {abil:"gun",   cd:8,  short:"GUN",    text:"Q: STUN SHOT — a bullet that stuns the first killer hit for 5 seconds."},
+  emo:   {abil:"shadow",cd:10, short:"SHADOW", text:"Q: SHADOW CROUCH — crouch low and turn invisible for 5 seconds."},
+  jane:  {abil:"axe",   cd:8,  short:"AXE",    text:"Q: AXE THROW — an arcing axe that stuns a killer for 5 seconds on hit."}
+};
+SURVIVORS.forEach(s=>Object.assign(s, SURV_ABIL[s.id]||{abil:null,cd:1,short:"—",text:""}));
+
 /* build all sprites */
 SURVIVORS.forEach(s=> s.spr = buildSprite(applyEdits(BASE_GRID, s.edits||[]), s.pal));
 KILLERS.forEach(k=>  k.spr = buildSprite(applyEdits(BASE_GRID, k.edits||[]), k.pal));
@@ -656,7 +677,7 @@ const MATCHUPS = {
 
 /* ============================ INPUT ============================ */
 const keys = {left:false,right:false,up:false,down:false,jump:false};
-let jumpQueued = false;
+let jumpQueued = false, abilQueued = false;
 const KEYMAP = {
   ArrowLeft:"left", KeyA:"left", ArrowRight:"right", KeyD:"right",
   ArrowUp:"up", KeyW:"up", ArrowDown:"down", KeyS:"down", Space:"jump"
@@ -670,6 +691,7 @@ addEventListener("keydown", e=>{
   }
   if(e.code==="KeyP" || e.code==="Escape") togglePause();
   if(e.code==="KeyM") setMusic(!music.enabled);
+  if(e.code==="KeyQ"){ e.preventDefault(); abilQueued=true; }
 });
 addEventListener("keyup", e=>{ const k=KEYMAP[e.code]; if(k) keys[k]=false; });
 function bindTouch(id, key, alsoJump){
@@ -681,6 +703,11 @@ function bindTouch(id, key, alsoJump){
 }
 bindTouch("tL","left"); bindTouch("tR","right");
 bindTouch("tU","up",true); bindTouch("tD","down"); bindTouch("tJ","jump");
+{
+  const q=document.getElementById("tQ");
+  const fire=ev=>{ev.preventDefault(); abilQueued=true;};
+  ["touchstart","mousedown"].forEach(t=>q.addEventListener(t,fire,{passive:false}));
+}
 /* Guarantee on-screen controllers on mobile / touch devices, even when
    the CSS media query can't tell (some tablets and hybrids lie). */
 function refreshTouchUI(){
@@ -698,16 +725,18 @@ const state = {
   timeLeft:0, coins:0, totalCoins:0,
   map:null, coinList:[], killers:[], bots:[], projectiles:[], spikes:[],
   particles:[], ladders:[], shake:0, elapsed:0, lastStand:false, lastStandT:0,
-  matchTitle:"", matchTag:""
+  matchTitle:"", matchTag:"", builds:[], buildSet:new Set(), clones:[]
 };
 const player = {
   x:0,y:0,w:22,h:42,vx:0,vy:0,onGround:false,onLadder:false,
-  hp:3,inv:0,face:1,dropT:0,anim:0,coyote:0, isPlayer:true, dead:false
+  hp:3,inv:0,face:1,dropT:0,anim:0,coyote:0, isPlayer:true, dead:false,
+  abilCd:0, invisT:0, crouchT:0, crouching:false, swingT:0
 };
 const tileAt = (c,r)=>{
   if(c<0||c>=COLS) return "#";
   if(r<0) return ".";
   if(r>=ROWS) return "#";
+  if(state.buildSet.has(c+","+r)) return "=";
   return state.map[r][c];
 };
 const isSolid  = t => t==="#";
@@ -780,6 +809,7 @@ function loadLevel(i){
   state.map = L.map.slice();
   state.coinList=[]; state.killers=[]; state.bots=[];
   state.projectiles=[]; state.spikes=[]; state.particles=[];
+  state.builds=[]; state.buildSet=new Set(); state.clones=[];
   state.timeLeft=L.time; state.coins=0; state.shake=0; state.elapsed=0;
   state.lastStand=false; state.lastStandT=0; state.matchTitle=""; state.matchTag="";
   let pSpawn = {x:TILE*2, y:TILE*14};
@@ -803,7 +833,8 @@ function loadLevel(i){
     }
   }
   Object.assign(player,{x:pSpawn.x,y:pSpawn.y,vx:0,vy:0,hp:3,inv:0,dead:false,
-    onGround:false,onLadder:false,face:1,dropT:0,anim:0,coyote:0});
+    onGround:false,onLadder:false,face:1,dropT:0,anim:0,coyote:0,
+    abilCd:0, invisT:0, crouchT:0, crouching:false, swingT:0, h:42});
   /* 4 bot survivors with the skins the player didn't pick */
   const botSkins = SURVIVORS.filter((s,idx)=>idx!==state.skin).slice(0,4);
   const spots = standSpots.filter(s=>Math.abs(s.x-pSpawn.x)>TILE*4);
@@ -846,6 +877,124 @@ function hurtSurvivor(s, fromX){
   }
 }
 
+/* ============================ SURVIVOR ABILITIES (Q) ============================ */
+function stunKiller(k, sec){
+  k.stunT = Math.max(k.stunT||0, sec);
+  k.climbing=false; k.dashT=0; k.rageT=0;
+  puff(k.x+k.w/2, k.y-4, "#ffe46a", 10);
+  try{ beep(740,.1,"square",.06); setTimeout(()=>beep(540,.14,"square",.05),70); }catch(e){}
+}
+function spawnClone(){
+  state.clones.push({
+    x:player.x, y:player.y, w:22, h:42, vx:-player.face*80, vy:0,
+    onGround:false, dropT:0, anim:Math.random()*6, face:-player.face||1,
+    life:6, wanderT:0, targetX:player.x-player.face*180, stuckT:0, clone:true,
+    skin:SURVIVORS[state.skin]
+  });
+}
+function useAbility(){
+  if(player.dead || player.abilCd>0) return;
+  const s=SURVIVORS[state.skin], a=s.abil;
+  if(!a){ /* the noob way */
+    puff(player.x+player.w/2, player.y-8, "#f5d020", 8);
+    try{ beep(220,.12,"square",.05); }catch(e){}
+    player.abilCd=1;
+    return;
+  }
+  if(a==="build"){
+    const r=Math.floor((player.y+player.h+2)/TILE);
+    const c0=Math.floor((player.x+player.w/2)/TILE)-1;
+    let placed=false;
+    for(let i=0;i<3;i++){
+      const c=c0+i;
+      if(c<0||c>=COLS||r<1||r>=ROWS) continue;
+      const t=state.map[r][c];
+      if(t==="#"||t==="="||t==="L") continue;
+      const key=c+","+r;
+      if(!state.buildSet.has(key)){
+        state.builds.push({c,r,t:6});
+        state.buildSet.add(key);
+        placed=true;
+        puff(c*TILE+16, r*TILE+4, "#c98a3e", 5);
+      }
+    }
+    if(placed){ player.abilCd=s.cd; try{beep(160,.08,"square",.06); setTimeout(()=>beep(200,.08,"square",.06),60);}catch(e){} }
+    return;
+  }
+  if(a==="sword"){
+    player.swingT=0.25;
+    const rx = player.face>0 ? player.x+player.w-4 : player.x-52;
+    let hit=false;
+    for(const k of state.killers){
+      if(k.x<rx+56 && k.x+k.w>rx && k.y<player.y+player.h+10 && k.y+k.h>player.y-10){ stunKiller(k,5); hit=true; }
+    }
+    if(!hit) try{ beep(420,.07,"sawtooth",.04); }catch(e){}
+    player.abilCd=s.cd;
+    return;
+  }
+  if(a==="gun"){
+    state.projectiles.push({
+      x:player.x+(player.face>0?player.w+6:-6), y:player.y+16,
+      vx:player.face*560, vy:0, life:1.2, col:"#ffe9a8", friendly:true, kind:"bullet"
+    });
+    puff(player.x+(player.face>0?player.w+8:-8), player.y+16, "#ffe9a8", 4);
+    try{ beep(900,.06,"square",.06); beep(300,.1,"sawtooth",.05); }catch(e){}
+    player.abilCd=s.cd;
+    return;
+  }
+  if(a==="axe"){
+    state.projectiles.push({
+      x:player.x+player.w/2, y:player.y+8,
+      vx:player.face*330, vy:-170, grav:720, life:1.8,
+      col:"#cfd2d8", friendly:true, kind:"axe", spin:0
+    });
+    try{ beep(260,.12,"sawtooth",.05); }catch(e){}
+    player.abilCd=s.cd;
+    return;
+  }
+  if(a==="decoy"){ /* burger: vanish + clone */
+    player.invisT=5;
+    spawnClone();
+    puff(player.x+player.w/2, player.y+player.h/2, "#e8e2d8", 14);
+    try{ beep(660,.1,"sine",.05); setTimeout(()=>beep(880,.12,"sine",.05),80); }catch(e){}
+    player.abilCd=s.cd;
+    return;
+  }
+  if(a==="shadow"){ /* emo: crouch + vanish */
+    player.invisT=5; player.crouchT=5;
+    if(!player.crouching){ player.crouching=true; player.y+=12; player.h=30; }
+    puff(player.x+player.w/2, player.y+player.h/2, "#3a3a4a", 12);
+    try{ beep(180,.18,"sine",.05); }catch(e){}
+    player.abilCd=s.cd;
+    return;
+  }
+}
+function updateBuilds(dt){
+  let changed=false;
+  state.builds=state.builds.filter(b=>{
+    b.t-=dt;
+    if(b.t<=0){ state.buildSet.delete(b.c+","+b.r); puff(b.c*TILE+16,b.r*TILE+5,"#c98a3e",4); changed=true; return false; }
+    return true;
+  });
+}
+function updateClones(dt){
+  state.clones=state.clones.filter(cl=>{
+    cl.life-=dt;
+    if(cl.life<=0){ puff(cl.x+cl.w/2, cl.y+cl.h/2, "#e8e2d8", 10); return false; }
+    /* run away from the nearest killer, like a panicked bot */
+    let nk=null,nd=1e9;
+    for(const k of state.killers){ const d=Math.hypot(k.x-cl.x,k.y-cl.y); if(d<nd){nd=d;nk=k;} }
+    let dir = nk ? (Math.sign(cl.x-nk.x)||1) : cl.face;
+    cl.face=dir;
+    cl.vx += (dir*RUN*0.8 - cl.vx)*Math.min(1,dt*10);
+    if(cl.onGround && (Math.abs(cl.vx)<25 || Math.random()<dt*1.2)) cl.vy=JUMP*0.92;
+    cl.dropT=Math.max(0,cl.dropT-dt);
+    cl.vy=Math.min(cl.vy+GRAV*dt,900);
+    moveAndCollide(cl,dt,true);
+    if(Math.abs(cl.vx)>30 && cl.onGround) cl.anim+=dt*10;
+    return true;
+  });
+}
 /* ============================ PLAYER ============================ */
 const GRAV=1900, JUMP=-700, RUN=225, CLIMB=150;
 function updatePlayer(dt){
@@ -871,7 +1020,8 @@ function updatePlayer(dt){
     let ax=0;
     if(keys.left){ax=-1;player.face=-1;}
     if(keys.right){ax=1;player.face=1;}
-    player.vx += (ax*RUN - player.vx)*Math.min(1,dt*14);
+    const spd = player.crouching ? RUN*0.6 : RUN;
+    player.vx += (ax*spd - player.vx)*Math.min(1,dt*14);
     if(Math.abs(player.vx)<4 && ax===0) player.vx=0;
     if(keys.down && player.onGround) tryDropThrough(player);
     player.coyote = player.onGround ? 0.1 : Math.max(0,player.coyote-dt);
@@ -886,6 +1036,16 @@ function updatePlayer(dt){
   }
   jumpQueued=false;
   player.inv = Math.max(0,player.inv-dt);
+  player.invisT = Math.max(0,player.invisT-dt);
+  player.swingT = Math.max(0,player.swingT-dt);
+  player.abilCd = Math.max(0,player.abilCd-dt);
+  if(player.crouching){
+    player.crouchT -= dt;
+    if(player.crouchT<=0){
+      player.crouching=false; player.crouchT=0;
+      player.y -= 12; player.h = 42;
+    }
+  }
   if(Math.abs(player.vx)>30 && player.onGround) player.anim+=dt*10; else if(player.onGround) player.anim=0;
   const px=player.x+player.w/2, py=player.y+player.h/2;
   for(const c of state.coinList){
@@ -967,9 +1127,16 @@ function nearestLadderFor(k, wantUp){
   }
   return best;
 }
+function targetPool(){
+  const pool=[];
+  if(!player.dead && player.invisT<=0) pool.push(player);
+  for(const b of state.bots) if(!b.dead) pool.push(b);
+  for(const c of state.clones) pool.push(c);
+  return pool;
+}
 function pickTarget(k){
   let best=null, bd=1e9;
-  for(const s of aliveSurvivors()){
+  for(const s of targetPool()){
     const d=Math.hypot(s.x-k.x, s.y-k.y);
     if(d<bd){bd=d;best=s;}
   }
@@ -1012,6 +1179,15 @@ function fireAbility(k, target){
   return false;
 }
 function updateKiller(k, dt){
+  /* stunned: drop everything and wobble in place */
+  k.stunT = Math.max(0, (k.stunT||0) - dt);
+  if(k.stunT > 0){
+    k.climbing=false;
+    k.vx *= Math.max(0, 1-dt*10);
+    k.vy = Math.min(k.vy+GRAV*dt, 900);
+    moveAndCollide(k, dt, false);
+    return;
+  }
   const target = pickTarget(k);
   if(!target) return;
   const dx=(target.x+target.w/2)-(k.x+k.w/2);
@@ -1072,24 +1248,45 @@ function updateKiller(k, dt){
     }
   }
   if(Math.abs(k.vx)>20) k.anim+=dt*9;
-  /* touch any survivor */
-  for(const s of aliveSurvivors()){
-    if(k.x<s.x+s.w && k.x+k.w>s.x && k.y<s.y+s.h && k.y+k.h>s.y)
-      hurtSurvivor(s, k.x);
+  /* touch any survivor or decoy */
+  for(const s of targetPool()){
+    if(k.x<s.x+s.w && k.x+k.w>s.x && k.y<s.y+s.h && k.y+k.h>s.y){
+      if(s.clone){
+        s.life=0; /* clone pops — updateClones cleans it up */
+        puff(s.x+s.w/2, s.y+s.h/2, "#e8e2d8", 12);
+        try{ beep(500,.08,"sine",.04); }catch(e){}
+      } else hurtSurvivor(s, k.x);
+    }
   }
 }
 
 /* ============================ PROJECTILES & SPIKES ============================ */
 function updateProjectiles(dt){
   state.projectiles = state.projectiles.filter(p=>{
-    p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
-    if(Math.random()<.6) state.particles.push({x:p.x,y:p.y,vx:(Math.random()-.5)*40,vy:(Math.random()-.5)*40,life:.25,col:p.col,s:3});
+    p.life-=dt;
+    if(p.grav) p.vy += p.grav*dt;
+    if(p.kind==="axe") p.spin += dt*14;
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    if(!p.friendly && Math.random()<.6)
+      state.particles.push({x:p.x,y:p.y,vx:(Math.random()-.5)*40,vy:(Math.random()-.5)*40,life:.25,col:p.col,s:3});
     if(p.life<=0 || p.x<-30||p.x>W+30||p.y<-30||p.y>H+30) return false;
-    for(const s of aliveSurvivors()){
-      if(p.x>s.x-6 && p.x<s.x+s.w+6 && p.y>s.y-6 && p.y<s.y+s.h+6){
-        hurtSurvivor(s, p.x-p.vx);
-        puff(p.x,p.y,p.col,8);
-        return false;
+    if(p.friendly){
+      /* survivor weapons hit killers and stun for 5 seconds */
+      for(const k of state.killers){
+        if(p.x>k.x-6 && p.x<k.x+k.w+6 && p.y>k.y-6 && p.y<k.y+k.h+6){
+          stunKiller(k,5);
+          puff(p.x,p.y,p.col,8);
+          return false;
+        }
+      }
+    } else {
+      for(const s of aliveSurvivors()){
+        if(s.isPlayer && player.invisT>0) continue;
+        if(p.x>s.x-6 && p.x<s.x+s.w+6 && p.y>s.y-6 && p.y<s.y+s.h+6){
+          hurtSurvivor(s, p.x-p.vx);
+          puff(p.x,p.y,p.col,8);
+          return false;
+        }
       }
     }
     return true;
@@ -1157,6 +1354,16 @@ function drawTiles(L,t){
       cx.fillRect(x+7,y+6,18,4); cx.fillRect(x+7,y+22,18,4);
     }
   }
+  /* worker-built platforms */
+  for(const b of state.builds){
+    const x=b.c*TILE, y=b.r*TILE;
+    const blink = b.t<1.5 && Math.floor(b.t*8)%2===0;
+    cx.globalAlpha = blink ? .4 : 1;
+    cx.fillStyle="#c98a3e"; cx.fillRect(x,y,TILE,9);
+    cx.fillStyle="#8a5a22"; cx.fillRect(x+2,y+2,4,5); cx.fillRect(x+14,y+2,4,5); cx.fillRect(x+26,y+2,4,5);
+    cx.fillStyle="rgba(255,255,255,.25)"; cx.fillRect(x,y,TILE,2);
+    cx.globalAlpha=1;
+  }
   for(const cn of state.coinList){
     if(cn.got) continue;
     const bob=Math.sin(t*4+cn.ph)*3, x=cn.c*TILE+16, y=cn.r*TILE+16+bob;
@@ -1202,10 +1409,26 @@ function drawEntity(spr, b, t, flash){
   cx.globalAlpha=1;
 }
 function drawKiller(k,t){
+  const stunned = (k.stunT||0)>0;
   const glowR = 30+Math.sin(t*6)*4 + (k.rageT>0?12:0) + (k.dashT>0?8:0);
-  cx.fillStyle = k.rageT>0 ? "rgba(255,40,40,.4)" : k.type.glow;
+  cx.fillStyle = stunned ? "rgba(255,228,106,.18)" : (k.rageT>0 ? "rgba(255,40,40,.4)" : k.type.glow);
   cx.beginPath(); cx.arc(k.x+k.w/2,k.y+k.h/2,glowR,0,7); cx.fill();
+  if(stunned && Math.floor(t*14)%3===0) cx.globalAlpha=.6;
   drawEntity(k.type.spr, k, t, false);
+  cx.globalAlpha=1;
+  if(stunned){
+    /* orbiting stun stars */
+    for(let i=0;i<3;i++){
+      const a=t*5+i*2.1;
+      const sx=k.x+k.w/2+Math.cos(a)*16, sy=k.y-10+Math.sin(a)*5;
+      cx.fillStyle="#ffe46a";
+      cx.fillRect(sx-2,sy-2,4,4);
+      cx.fillRect(sx-4,sy-1,2,2); cx.fillRect(sx+2,sy-1,2,2);
+    }
+    cx.font="bold 10px 'Courier New'"; cx.textAlign="center";
+    cx.fillStyle="#ffe46a"; cx.fillText("STUNNED "+Math.ceil(k.stunT)+"s", k.x+k.w/2, k.y-20);
+    cx.textAlign="left";
+  }
   cx.font="bold 9px 'Courier New'"; cx.textAlign="center";
   cx.fillStyle="rgba(0,0,0,.5)"; cx.fillRect(k.x+k.w/2-28,k.y-16,56,11);
   cx.fillStyle="#ff6b6b"; cx.fillText(k.type.name,k.x+k.w/2,k.y-7);
@@ -1221,6 +1444,21 @@ function drawBot(b,t){
 }
 function drawProjectiles(t){
   for(const p of state.projectiles){
+    if(p.kind==="bullet"){
+      cx.fillStyle="rgba(255,233,168,.4)";
+      cx.fillRect(p.x-14*Math.sign(p.vx)-4,p.y-1,18,2);
+      cx.fillStyle=p.col; cx.fillRect(p.x-3,p.y-2,7,4);
+      continue;
+    }
+    if(p.kind==="axe"){
+      cx.save();
+      cx.translate(p.x,p.y); cx.rotate(p.spin||0);
+      cx.fillStyle="#8a5a2a"; cx.fillRect(-2,-12,4,24);      /* handle */
+      cx.fillStyle=p.col;     cx.fillRect(-10,-12,12,9);     /* blade  */
+      cx.fillStyle="#9aa0a8"; cx.fillRect(-10,-12,12,3);
+      cx.restore();
+      continue;
+    }
     cx.fillStyle="rgba(255,120,40,.35)";
     cx.beginPath(); cx.arc(p.x,p.y,11+Math.sin(t*20)*2,0,7); cx.fill();
     cx.fillStyle=p.col;
@@ -1241,6 +1479,16 @@ function drawHUD(){
   cx.font="bold 12px 'Courier New'";
   cx.fillStyle=alive===0?"#ff5050":"#7ee08a";
   cx.fillText(alive===0?"LAST ONE":"BOTS "+alive+"/4", 96, 22);
+  /* ability status */
+  const sv=SURVIVORS[state.skin];
+  if(sv.abil){
+    const ready=player.abilCd<=0;
+    cx.fillStyle=ready?"#ffce3a":"#5a5470";
+    cx.fillText("Q:"+sv.short+(ready?" ✦":" "+Math.ceil(player.abilCd)+"s"), 190, 22);
+  } else {
+    cx.fillStyle="#5a5470";
+    cx.fillText("Q:— (noob)", 190, 22);
+  }
   const total=state.coinList.length, allCoins=state.coins>=total;
   const tl=Math.max(0,state.timeLeft);
   cx.font="bold 18px 'Courier New'"; cx.textAlign="center";
@@ -1292,8 +1540,38 @@ function render(t){
     cx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s); cx.globalAlpha=1;
   }
   for(const b of state.bots) drawBot(b,t);
+  for(const cl of state.clones){
+    drawEntity(cl.skin.spr, cl, t, false);
+    cx.font="bold 8px 'Courier New'"; cx.textAlign="center";
+    cx.fillStyle="rgba(0,0,0,.45)"; cx.fillRect(cl.x+cl.w/2-22,cl.y-14,44,10);
+    cx.fillStyle="#e8d27a"; cx.fillText(cl.skin.name+"?",cl.x+cl.w/2,cl.y-6);
+    cx.textAlign="left";
+  }
   for(const k of state.killers) drawKiller(k,t);
-  if(!player.dead) drawEntity(SURVIVORS[state.skin].spr, player, t, player.inv>0);
+  if(!player.dead){
+    if(player.invisT>0) cx.globalAlpha=.3;
+    if(player.crouching){
+      /* squashed sprite while crouching */
+      const spr=SURVIVORS[state.skin].spr;
+      const img=(player.face<0)?spr.flip:spr.img;
+      cx.drawImage(img, Math.round(player.x-(SPR_W-player.w)/2), Math.round(player.y+player.h-SPR_H*0.74), SPR_W, SPR_H*0.74);
+      cx.globalAlpha=1;
+    } else {
+      drawEntity(SURVIVORS[state.skin].spr, player, t, player.inv>0 && player.invisT<=0);
+      cx.globalAlpha=1;
+    }
+    /* sword swing arc */
+    if(player.swingT>0){
+      const p=1-player.swingT/0.25;
+      const cxp=player.x+player.w/2, cyp=player.y+player.h*0.45;
+      cx.strokeStyle="rgba(240,240,255,"+(1-p)+")";
+      cx.lineWidth=4;
+      cx.beginPath();
+      const a0=player.face>0?-1.2:Math.PI+1.2, sweep=(player.face>0?1:-1)*2.4*p;
+      cx.arc(cxp,cyp,38,a0,a0+sweep,player.face<0);
+      cx.stroke();
+    }
+  }
   drawProjectiles(t);
   drawHUD();
   if(state.level===4){
@@ -1317,7 +1595,8 @@ function showIntro(){
   $("introTag").textContent="Arena "+(state.level+1)+" / 5 — "+state.killerN+"× "+kname;
   $("introName").textContent=L.name;
   $("introDesc").textContent=L.desc+" Collect every coin AND outlast the timer to win.";
-  $("introAbil").textContent = state.killerChoice>=0 ? KILLERS[state.killerChoice].abilDesc : "Each killer brings its own special ability. Watch for all of them.";
+  $("introAbil").textContent = (state.killerChoice>=0 ? KILLERS[state.killerChoice].abilDesc : "Each killer brings its own special ability. Watch for all of them.")
+    + "  —  YOU: " + (SURVIVORS[state.skin].abil ? SURVIVORS[state.skin].text : "no ability. Good luck, noob.");
   state.scene="intro"; show("intro");
 }
 function startLevel(){ loadLevel(state.level); state.scene="play"; show(null); }
@@ -1358,7 +1637,7 @@ function makeCard(spr, name, sub, cls){
 }
 const survCards=[], killerCards=[];
 SURVIVORS.forEach((s,i)=>{
-  const card=makeCard(s.spr,s.name,s.desc,"selS"+(i===0?" sel":""));
+  const card=makeCard(s.spr,s.name,s.abil?("Q: "+s.short):"NO ABILITY","selS"+(i===0?" sel":""));
   card.onclick=()=>{ state.skin=i; survCards.forEach((c,j)=>c.classList.toggle("sel",j===i)); beep(620,.05,"square",.02); };
   survCards.push(card); $("survRow").appendChild(card);
 });
@@ -1421,6 +1700,9 @@ function frame(now){
     state.timeLeft-=dt;
     state.lastStandT=Math.max(0,state.lastStandT-dt);
     updatePlayer(dt);
+    if(abilQueued){ useAbility(); }
+    updateBuilds(dt);
+    updateClones(dt);
     for(const b of state.bots) updateBot(b,dt);
     for(const k of state.killers){ updateKiller(k,dt); if(state.scene!=="play") break; }
     if(state.scene==="play"){ updateProjectiles(dt); updateSpikes(dt); }
@@ -1448,6 +1730,7 @@ function frame(now){
       else endRun(false, "Time ran out with "+left+" coin"+(left>1?"s":"")+" still uncollected. You must grab ALL the coins AND outlast the timer to win.");
     }
   }
+  abilQueued=false;
   if(state.map) render(state.elapsed);
   else{
     const g=cx.createLinearGradient(0,0,0,H);
