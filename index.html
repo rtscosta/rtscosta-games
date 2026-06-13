@@ -4,30 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ChatStupidity</title>
-<!-- Google tag (gtag.js) -->
+
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-HB8Y8G2CJC"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-
   gtag('config', 'G-HB8Y8G2CJC');
 </script>
 
-<!-- SEO -->
 <meta name="description" content="ChatStupidity is a fun browser game website with weird, colorful, pixel-style games you can play instantly. No downloads. No installs. Just chaos.">
-<meta name="keywords" content="ChatStupidity, browser games, free games, pixel games, funny games, stupid games, online games, Forsaken Escape 2">
+<meta name="keywords" content="ChatStupidity, browser games, free games, pixel games, funny games, stupid games, online games, Forsaken Escape 2, Asteroid Blaster">
 <meta name="author" content="ChatStupidity">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://chatstupidity.com/">
 
-<!-- GEO / Location -->
 <meta name="geo.region" content="US-FL">
 <meta name="geo.placename" content="Florida">
 <meta name="geo.position" content="28.5383;-81.3792">
 <meta name="ICBM" content="28.5383, -81.3792">
 
-<!-- Open Graph -->
 <meta property="og:title" content="ChatStupidity — Stupid Games. Smart Fun.">
 <meta property="og:description" content="Play weird, colorful browser games instantly. No downloads. No installs. Just chaos.">
 <meta property="og:type" content="website">
@@ -35,13 +31,11 @@
 <meta property="og:image" content="https://chatstupidity.com/img/forsaken-escape.png">
 <meta property="og:site_name" content="ChatStupidity">
 
-<!-- Twitter / X -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="ChatStupidity — Stupid Games. Smart Fun.">
 <meta name="twitter:description" content="Weird browser games you can play instantly.">
 <meta name="twitter:image" content="https://chatstupidity.com/img/forsaken-escape.png">
 
-<!-- Structured Data -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -53,11 +47,6 @@
     "@type": "Organization",
     "name": "ChatStupidity",
     "url": "https://chatstupidity.com/"
-  },
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": "https://chatstupidity.com/?q={search_term_string}",
-    "query-input": "required name=search_term_string"
   }
 }
 </script>
@@ -75,6 +64,16 @@
       "url": "https://chatstupidity.com/forsaken-escape.html",
       "image": "https://chatstupidity.com/img/forsaken-escape.png",
       "description": "Survive killers, collect every coin, and escape five deadly pixel arenas.",
+      "gamePlatform": "Web Browser",
+      "applicationCategory": "Game"
+    },
+    {
+      "@type": "VideoGame",
+      "position": 2,
+      "name": "Asteroid Blaster",
+      "url": "https://chatstupidity.com/asteroid_blaster.html",
+      "image": "https://chatstupidity.com/img/asteroid_blaster.png",
+      "description": "Dodge asteroids, blast your way through endless waves, and try not to become space dust.",
       "gamePlatform": "Web Browser",
       "applicationCategory": "Game"
     }
@@ -215,6 +214,7 @@ header{
 }
 
 .forsaken{background:linear-gradient(135deg,#FF4C85,#FF7A2F)}
+.asteroid{background:linear-gradient(135deg,#31C8D7,#6A5CFF)}
 .money{background:var(--green)}
 .coming{background:var(--cyan)}
 .apple{background:var(--cream)}
@@ -383,7 +383,7 @@ footer{
   }
 
   .card h2{
-    font-size:72px;
+    font-size:64px;
     line-height:.95;
   }
 
@@ -441,8 +441,25 @@ footer{
     </div>
   </a>
 
+  <a href="asteroid_blaster.html" class="card large asteroid" onclick="trackGameClick('Asteroid Blaster')">
+    <div class="badge">PLAY NOW</div>
+
+    <div class="card-content">
+      <img class="game-image" src="img/asteroid_blaster.png" alt="Asteroid Blaster">
+
+      <h2>Asteroid<br>Blaster</h2>
+
+      <p>
+        Dodge space rocks. Blast everything.
+        Panic responsibly.
+      </p>
+
+      <div class="play">Launch Game →</div>
+    </div>
+  </a>
+
   <div onclick="funPopup('mystery')" class="card money">
-    <div class="badge">COMING SOON</div>
+    <div class="badge">COMING IN 54 YEARS</div>
     <div class="card-content">
       <h2>Mystery<br>Game</h2>
       <p>Another terrible idea that somehow became fun.</p>
@@ -466,7 +483,7 @@ footer{
   </div>
 
   <div onclick="funPopup('secret')" class="card coming">
-    <div class="badge">SOON</div>
+    <div class="badge">DO NOT CLICK</div>
     <div class="card-content">
       <h2>Secret<br>Project</h2>
       <p>You are not ready. We are also not ready.</p>
@@ -497,7 +514,7 @@ function scrollToGames(){
 function openPopup(type){
   gtag('event', 'popup_opened', {
     popup_name: type
-   });
+  });
 
   const popup = document.getElementById("popup");
   const title = document.getElementById("popup-title");
@@ -620,7 +637,6 @@ function funPopup(type){
   };
 
   const list = messages[type];
-
   let randomMessage = list[Math.floor(Math.random() * list.length)];
 
   while(randomMessage === lastMessages[type]){
@@ -632,7 +648,7 @@ function funPopup(type){
   gtag('event', 'coming_soon_click', {
     category: type,
     message: randomMessage
-  });  
+  });
 
   title.innerText = titles[type];
   text.innerText = randomMessage;

@@ -243,6 +243,29 @@ const MUSIC_CFG = [   /* root midi, bpm, energy 0..1 */
 ];
 const PROG = [0,0,8,10];                       /* semitone offset per bar (i i VI VII) */
 const HAT16 = [1,0,.5,0, 1,0,.5,.3, 1,0,.5,0, 1,.4,.6,.8]; /* hat velocity per 16th */
+/* ----- last-stand finale themes (all original compositions) ----- */
+const LS_THEMES = {
+  grave:   {name:"GRAVE CHASE",  bpm:178, prog:[0,0,1,3],   kick:[0,3,6,8,11,14], snare:[4,12], chug:[0,3,6,8,11,14],
+            drone:true,  slide:"down", lead:null, kickVol:.17, hatVol:.03, chugVol:1},
+  stalker: {name:"STALKER",      bpm:142, prog:[0,0,0,1],   kick:[0,8],           snare:[8],    chug:[0,7,10],
+            drone:true,  slide:"down", lead:null, kickVol:.2,  hatVol:.02, chugVol:1.15},
+  playtime:{name:"PLAYTIME",     bpm:166, prog:[0,3,5,3],   kick:[0,4,8,12],      snare:[4,12], chug:[2,6,10,14],
+            drone:false, slide:null,   lead:{bars:[0,1,2,3], steps:[0,3,6,9,12], seq:[12,15,19,24,19,15]},
+            kickVol:.16, hatVol:.035, chugVol:.9},
+  corrupt: {name:"CORRUPTED",    bpm:160, prog:[0,1,0,6],   kick:[0,3,8,11],      snare:[4,12], chug:[0,3,8,11],
+            drone:true,  slide:"down", lead:null, kickVol:.18, hatVol:.028, chugVol:1.05},
+  deleted: {name:"DELETED",      bpm:170, prog:[0,0,6,1],   kick:[0,4,8,12],      snare:[4,12], chug:[1,3,5,7,9,11,13,15],
+            drone:false, slide:null,   lead:{bars:[2,3], steps:[2,6,10,14], seq:[24,22,19,15]},
+            glitch:true, kickVol:.16, hatVol:.03, chugVol:.8},
+  void:    {name:"VOID SMILE",   bpm:150, prog:[0,0,8,7],   kick:[0,6,8,14],      snare:[4,12], chug:[0,6,8,14],
+            drone:true,  slide:"down", lead:null, kickVol:.19, hatVol:.024, chugVol:1.1},
+  storm:   {name:"AZURE STORM",  bpm:176, prog:[0,5,3,7],   kick:[0,3,6,8,11,14], snare:[4,12], chug:[0,3,6,8,11,14],
+            drone:false, slide:"up",   lead:{bars:[1,3], steps:[0,4,8,12], seq:[12,19,24,19]},
+            kickVol:.17, hatVol:.032, chugVol:1},
+  encore:  {name:"FINAL ENCORE", bpm:174, prog:[0,8,3,10],  kick:[0,4,8,12],      snare:[4,12], chug:[0,2,4,6,8,10,12,14],
+            drone:true,  slide:"up",   lead:{bars:[0,1,2,3], steps:[0,2,4,6,8,10,12,14], seq:[12,15,19,24,27,24,19,15]},
+            bright:true, kickVol:.17, hatVol:.034, chugVol:.85}
+};
 function midiHz(m){ return 440*Math.pow(2,(m-69)/12); }
 function startMusic(){
   try{
@@ -326,42 +349,47 @@ function tickMusic(){
     const cfg = MUSIC_CFG[state.level % MUSIC_CFG.length];
     const panic = state.timeLeft>0 && state.timeLeft<10;   /* final 10 seconds */
     if(state.lastStand){
-      /* ============ LAST ONE STANDING: "GRAVE CHASE" ============
-         An original high-intensity pursuit theme: 178 BPM galloping
-         kick pattern, distorted power chords moving in sinister
-         half-steps (i – i – bII – bIII), a falling siren lead and a
-         low droning root underneath. Built to feel like being hunted. */
-      const bpm=178, spb=60/bpm/4;
-      const RIFF=[0,0,1,3];                       /* bar roots: i i bII bIII */
+      /* ============ LAST ONE STANDING: themed finale tracks ============
+         Each matchup swaps the ENTIRE song. All themes are original
+         compositions rendered by one sequencer from pattern data:
+         drums, distorted chugs, drones, slides and lead lines.        */
+      const th = LS_THEMES[state.lsTheme] || LS_THEMES.grave;
+      const spb=60/th.bpm/4;
       while(music.nextT < AC.currentTime + 0.16){
         const s=music.step%64, bar=(s/16)|0, st=s%16, t=music.nextT;
-        const off=RIFF[bar];
-        /* drums — relentless gallop */
-        if(st===0||st===3||st===6||st===8||st===11||st===14) kick808(t,.17);
-        if(st===4||st===12){ noiseAt(t,.16,.085,.003); noiseAt(t+.01,.12,.05,.002); }
-        if(st%2===0) noiseAt(t,.03,.03);
+        const off=th.prog[bar];
+        /* drums */
+        if(th.kick.indexOf(st)>=0) kick808(t, th.kickVol);
+        if(th.snare.indexOf(st)>=0){ noiseAt(t,.16,.085,.003); noiseAt(t+.01,.12,.05,.002); }
+        if(st%2===0) noiseAt(t,.03,th.hatVol);
+        if(th.glitch && Math.random()<.22) noiseAt(t+spb*.5,.018,.03);   /* corrupted stutters */
         if(panic && st%2===1) noiseAt(t,.018,.02);
-        /* power-chord chugs on the gallop, through distortion */
-        if(st===0||st===3||st===6||st===8||st===11||st===14){
+        /* distorted power-chord chugs */
+        if(th.chug.indexOf(st)>=0){
           const accent = st===0;
-          const dur=accent?spb*2.8:spb*1.2, v=accent?.058:.04;
-          for(const semis of [0,7,12]){
+          const dur=accent?spb*2.8:spb*1.2, v=(accent?.058:.04)*th.chugVol;
+          for(const semis of (th.bright?[0,7,12,19]:[0,7,12])){
             const hz=midiHz(cfg.root-12+off+semis);
             oscAt(t,hz,dur,"sawtooth",v,music.guitarBus,-7);
             oscAt(t,hz,dur,"sawtooth",v*.85,music.guitarBus,7);
           }
         }
-        /* low drone root under each bar */
-        if(st===0) oscAt(t, midiHz(cfg.root-24+off), spb*16, "sawtooth", .03, music.bassBus);
-        /* falling siren lead — a long slide down a tritone, bars 2 & 4 */
-        if((bar===1||bar===3) && st===0){
-          const top=midiHz(cfg.root+24+off);
-          slideAt(t, top, top/Math.pow(2,6/12), spb*12, "square", .03, music.guitarBus);
-          slideAt(t, top*1.005, top/Math.pow(2,6/12)*1.005, spb*12, "square", .02, music.guitarBus);
+        /* low drone under each bar */
+        if(th.drone && st===0) oscAt(t, midiHz(cfg.root-24+off), spb*16, "sawtooth", .03, music.bassBus);
+        /* siren slide (up = rising storm, down = closing dread) */
+        if(th.slide && (bar===1||bar===3) && st===0){
+          const base=midiHz(cfg.root+24+off);
+          const a = th.slide==="up" ? base/Math.pow(2,6/12) : base;
+          const b = th.slide==="up" ? base : base/Math.pow(2,6/12);
+          slideAt(t, a, b, spb*12, "square", .03, music.guitarBus);
+          slideAt(t, a*1.005, b*1.005, spb*12, "square", .02, music.guitarBus);
         }
-        /* stabbing high pulse every offbeat in the final bar of the loop */
-        if(bar===3 && st%4===2)
-          oscAt(t, midiHz(cfg.root+12+off), spb*.8, "square", .032, music.guitarBus);
+        /* lead line */
+        if(th.lead && (panic || th.lead.bars.indexOf(bar)>=0) && th.lead.steps.indexOf(st)>=0){
+          const seq=th.lead.seq;
+          const n=seq[(s>>1)%seq.length]+(panic?12:0);
+          oscAt(t, midiHz(cfg.root+off+n), spb*1.1, "square", .032, th.bright?music.gain:music.guitarBus);
+        }
         music.step++; music.nextT+=spb;
       }
       return;
@@ -598,10 +626,15 @@ const SURVIVORS = [
 { id:"agent", name:"AGENT", desc:"in disguise",
   pal:{h:"#15151a",H:"#a8a8b0",e:"#1a1a1a",m:"#1a1a1a",T:"#15151a",c:"#e8e2d8",A:"#15151a",n:"#a8a8b0",L:"#15151a",R:"#15151a",f:"#0a0a0d",g:"#0a0a0d",t:"#7a1420",x:"#1a1a1a"},
   edits:[[2,2,"hhhhhhhhhhhh"],[7,5,"xxxxxx"],[12,4,"TcctccT"],[13,4,"TcctccT"]] },
-{ id:"emo", name:"EMO", desc:"too cool to scream",
-  pal:{h:"#15151a",H:"#e8e2d8",e:"#1a1a1a",m:"#1a1a1a",T:"#1c1c24",c:"#3a6ad9",A:"#1c1c24",n:"#e8e2d8",L:"#1c1c24",R:"#1c1c24",f:"#0a0a0d",g:"#0a0a0d",x:"#1a1a1a"},
-  edits:[[3,4,"hHHHHHHh"],[4,4,"hHHHHHHh"],[5,4,"heHHHHeh"],[7,5,"xx..xx"],
-         [12,6,"Tccc"],[13,6,"cccT"]] },
+{ id:"twotime", name:"TWO TIME", desc:"the blue witch",
+  pal:{b:"#2a3a8a",B:"#161e3e",u:"#d8b04a",h:"#1a2238",H:"#dce0dc",e:"#1a1a1a",m:"#1a1a1a",
+       S:"#2c3a6e",T:"#2a3a7a",c:"#1c2748",w:"#dce0dc",A:"#c8cede",n:"#dce0dc",
+       L:"#1c2748",R:"#1c2748",f:"#3a5ac8",g:"#3a5ac8",x:"#1a1a1a"},
+  edits:[[0,7,"bb"],[1,6,"bbbb"],[2,5,"BBuBBB"],[3,3,"bbbbbbbbbb"],
+         [4,4,"hHHHHHHh"],[5,4,"heHHHHeh"],[6,5,"x"],[6,10,"x"],[7,6,"xxxx"],
+         [8,4,"SSSSSSSS"],[9,5,"SS"],
+         [12,7,"ww"],[13,7,"ww"],
+         [16,2,"BBBBuuBBBBBB"]] },
 { id:"jane", name:"JANE DOE", desc:"the wide-brim wanderer",
   pal:{b:"#14141d",h:"#8a3aa8",H:"#c6cac4",e:"#1a1a1a",m:"#1a1a1a",T:"#c8b88a",c:"#c8b88a",
        A:"#1c1c2c",n:"#c6cac4",L:"#1c1c2c",R:"#1c1c2c",f:"#0d0d14",g:"#0d0d14",
@@ -643,7 +676,17 @@ const KILLERS = [
   glow:"rgba(160,80,255,.3)", proj:null,
   pal:{h:"#241830",H:"#241830",e:"#0a0a0d",m:"#0a0a0d",T:"#1b1024",c:"#8a8a96",A:"#140a1c",n:"#140a1c",L:"#140a1c",R:"#140a1c",f:"#0a0510",g:"#0a0510",S:"#dcd8e0",x:"#0a0a0d"},
   edits:[[2,2,"hh.hhhhhh.hh"],[3,8,"SSSS"],[4,8,"SSSS"],[5,8,"SxSS"],[6,8,"SSSS"],[7,8,"xSxS"],
-         [10,5,"c..cc..c"],[12,4,"Tc.cc.cT"],[13,4,"TccccccT"]] }
+         [10,5,"c..cc..c"],[12,4,"Tc.cc.cT"],[13,4,"TccccccT"]] },
+{ id:"azure", name:"AZURE", speed:150, abil:"fling", cd:4.2,
+  abilDesc:"STORM DASH — blinks forward at blinding speed, and his hits FLING you across the map",
+  glow:"rgba(90,80,220,.38)", proj:null,
+  pal:{b:"#3a3230",F:"#5a8ae0",H:"#16101f",e:"#b06ae0",m:"#0a0a10",T:"#7a3ae8",c:"#14101c",
+       A:"#0a0a10",n:"#0a0a10",L:"#0a0a10",R:"#0a0a10",f:"#06060a",g:"#06060a",
+       t:"#141a30",x:"#0a0a10"},
+  edits:[[0,8,"bb"],[0,11,"b"],[1,6,"bbbbb"],[1,11,"b"],[2,5,"bFFbbbb"],[3,3,"bbbbbbbbbbb"],
+         [5,5,"ee"],[5,9,"e"],
+         [11,7,"cc"],[12,5,"c"],[12,6,"cccc"],[12,10,"c"],[13,7,"cc"],
+         [9,0,"t"],[10,15,"t"],[12,0,"t"],[13,15,"t"],[11,0,"t"],[14,15,"t"]] }
 ];
 /* ----- survivor abilities (Q key) ----- */
 const SURV_ABIL = {
@@ -652,7 +695,7 @@ const SURV_ABIL = {
   bacon: {abil:"sword", cd:8,  short:"SWORD",  text:"Q: SWORD SWING — stuns killers in front of you for 5 seconds."},
   burger:{abil:"decoy", cd:12, short:"DECOY",  text:"Q: VANISH — turn invisible for 5s and leave behind a clone decoy."},
   agent: {abil:"gun",   cd:8,  short:"GUN",    text:"Q: STUN SHOT — a bullet that stuns the first killer hit for 5 seconds."},
-  emo:   {abil:"shadow",cd:10, short:"SHADOW", text:"Q: SHADOW CROUCH — crouch low and turn invisible for 5 seconds."},
+  twotime:{abil:"shadow",cd:10, short:"SHADOW", text:"Q: SHADOW CROUCH — crouch low and turn invisible for 5 seconds."},
   jane:  {abil:"axe",   cd:8,  short:"AXE",    text:"Q: AXE THROW — an arcing axe that stuns a killer for 5 seconds on hit."}
 };
 SURVIVORS.forEach(s=>Object.assign(s, SURV_ABIL[s.id]||{abil:null,cd:1,short:"—",text:""}));
@@ -667,13 +710,19 @@ const MATCHUPS = {
   "john|jane":   "Doe versus Doe. This stays in the family.",
   "noli|bacon":  "1x1x1x1 has flagged the bacon for deletion.",
   "jason|noob":  "The oldest chase in the game. Run, noob.",
-  "g666|emo":    "Noli only smiles when it's over.",
+  "g666|twotime":"Noli only smiles when it's over.",
   "c00l|noob":   "Two classics. One survivor.",
   "john|agent":  "He knows your real name, agent.",
   "jason|worker":"No hard hat can save you now.",
-  "noli|emo":    "Even the void thinks you're dramatic.",
-  "g666|jane":   "Tip your hat. It's the last thing you'll do."
+  "noli|twotime":"Even the void thinks you're dramatic.",
+  "g666|jane":   "Tip your hat. It's the last thing you'll do.",
+  "azure|twotime":"Two hats. One storm. No encore.",
+  "azure|jane":  "The storm collects wide-brim hats.",
+  "azure|noob":  "You can't outrun the weather."
 };
+/* which last-stand theme plays for each matchup / killer */
+const LS_MATCH_THEME  = { "azure|twotime":"encore" };
+const LS_KILLER_THEME = { jason:"stalker", c00l:"playtime", john:"corrupt", noli:"deleted", g666:"void", azure:"storm" };
 
 /* ============================ INPUT ============================ */
 const keys = {left:false,right:false,up:false,down:false,jump:false};
@@ -725,7 +774,7 @@ const state = {
   timeLeft:0, coins:0, totalCoins:0,
   map:null, coinList:[], killers:[], bots:[], projectiles:[], spikes:[],
   particles:[], ladders:[], shake:0, elapsed:0, lastStand:false, lastStandT:0,
-  matchTitle:"", matchTag:"", builds:[], buildSet:new Set(), clones:[]
+  matchTitle:"", matchTag:"", lsTheme:"grave", builds:[], buildSet:new Set(), clones:[]
 };
 const player = {
   x:0,y:0,w:22,h:42,vx:0,vy:0,onGround:false,onLadder:false,
@@ -811,7 +860,7 @@ function loadLevel(i){
   state.projectiles=[]; state.spikes=[]; state.particles=[];
   state.builds=[]; state.buildSet=new Set(); state.clones=[];
   state.timeLeft=L.time; state.coins=0; state.shake=0; state.elapsed=0;
-  state.lastStand=false; state.lastStandT=0; state.matchTitle=""; state.matchTag="";
+  state.lastStand=false; state.lastStandT=0; state.matchTitle=""; state.matchTag=""; state.lsTheme="grave";
   let pSpawn = {x:TILE*2, y:TILE*14};
   const kSpawns=[], standSpots=[];
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
@@ -834,7 +883,7 @@ function loadLevel(i){
   }
   Object.assign(player,{x:pSpawn.x,y:pSpawn.y,vx:0,vy:0,hp:3,inv:0,dead:false,
     onGround:false,onLadder:false,face:1,dropT:0,anim:0,coyote:0,
-    abilCd:0, invisT:0, crouchT:0, crouching:false, swingT:0, h:42});
+    abilCd:0, invisT:0, crouchT:0, crouching:false, swingT:0, h:42, flingT:0});
   /* 4 bot survivors with the skins the player didn't pick */
   const botSkins = SURVIVORS.filter((s,idx)=>idx!==state.skin).slice(0,4);
   const spots = standSpots.filter(s=>Math.abs(s.x-pSpawn.x)>TILE*4);
@@ -861,13 +910,25 @@ function loadLevel(i){
 }
 
 /* ============================ DAMAGE ============================ */
-function hurtSurvivor(s, fromX){
+function hurtSurvivor(s, fromX, fling){
   if(s.dead) return;
   if(s.isPlayer){
     if(player.inv>0) return;
-    player.hp--; player.inv=1.4; state.shake=0.35;
-    player.vx = Math.sign(player.x - fromX || 1)*320; player.vy=-380;
+    player.hp--; player.inv = fling ? 1.8 : 1.4;
+    state.shake = fling ? 0.7 : 0.35;
+    const dir = Math.sign(player.x - fromX || 1);
+    if(fling){ /* azure sends you FLYING across the map */
+      player.vx = dir * 860;
+      player.vy = -640;
+      player.flingT = 0.65;
+      puff(player.x+player.w/2, player.y+player.h/2, "#5a8ae0", 18);
+      try{ beep(520,.1,"sawtooth",.08); setTimeout(()=>beep(260,.25,"sawtooth",.07),60); }catch(e){}
+    } else {
+      player.vx = dir * 320;
+      player.vy = -380;
+    }
     player.onLadder=false;
+    player.crouching && (player.crouching=false, player.crouchT=0, player.y-=12, player.h=42);
     puff(player.x+player.w/2, player.y+player.h/2, "#e03a3a", 12);
     if(player.hp<=0){ player.dead=true; sfx.dead(); endRun(false); } else sfx.hit();
   } else {
@@ -933,11 +994,21 @@ function useAbility(){
     return;
   }
   if(a==="gun"){
+    /* aim assist: angle the shot at the nearest killer in front of you */
+    const py = player.y + player.h*0.5;
+    let vy = 0, bd = 1e9;
+    for(const k of state.killers){
+      const kx=k.x+k.w/2, ky=k.y+k.h/2;
+      const dx=kx-(player.x+player.w/2);
+      if(Math.sign(dx)!==player.face || Math.abs(dx)>620 || Math.abs(dx)<10) continue;
+      if(Math.abs(dx)<bd){ bd=Math.abs(dx); vy = (ky-py)/(Math.abs(dx)/560); }
+    }
+    vy = Math.max(-300, Math.min(300, vy));
     state.projectiles.push({
-      x:player.x+(player.face>0?player.w+6:-6), y:player.y+16,
-      vx:player.face*560, vy:0, life:1.2, col:"#ffe9a8", friendly:true, kind:"bullet"
+      x:player.x+(player.face>0?player.w+6:-6), y:py,
+      vx:player.face*560, vy, life:1.2, col:"#ffe9a8", friendly:true, kind:"bullet"
     });
-    puff(player.x+(player.face>0?player.w+8:-8), player.y+16, "#ffe9a8", 4);
+    puff(player.x+(player.face>0?player.w+8:-8), py, "#ffe9a8", 4);
     try{ beep(900,.06,"square",.06); beep(300,.1,"sawtooth",.05); }catch(e){}
     player.abilCd=s.cd;
     return;
@@ -1021,7 +1092,8 @@ function updatePlayer(dt){
     if(keys.left){ax=-1;player.face=-1;}
     if(keys.right){ax=1;player.face=1;}
     const spd = player.crouching ? RUN*0.6 : RUN;
-    player.vx += (ax*spd - player.vx)*Math.min(1,dt*14);
+    const ctrl = (player.flingT||0)>0 ? 1.6 : 14;   /* almost no control mid-fling */
+    player.vx += (ax*spd - player.vx)*Math.min(1,dt*ctrl);
     if(Math.abs(player.vx)<4 && ax===0) player.vx=0;
     if(keys.down && player.onGround) tryDropThrough(player);
     player.coyote = player.onGround ? 0.1 : Math.max(0,player.coyote-dt);
@@ -1036,6 +1108,7 @@ function updatePlayer(dt){
   }
   jumpQueued=false;
   player.inv = Math.max(0,player.inv-dt);
+  player.flingT = Math.max(0,(player.flingT||0)-dt);
   player.invisT = Math.max(0,player.invisT-dt);
   player.swingT = Math.max(0,player.swingT-dt);
   player.abilCd = Math.max(0,player.abilCd-dt);
@@ -1163,6 +1236,13 @@ function fireAbility(k, target){
     if(dist>280 || Math.abs(ty-ky)>70) return false;
     k.dashT=0.5; k.face=Math.sign(tx-kx)||1; sfx.dash(); return true;
   }
+  if(a==="fling"){ /* azure: storm dash — much faster, much further */
+    if(dist>420 || Math.abs(ty-ky)>95) return false;
+    k.dashT=0.45; k.face=Math.sign(tx-kx)||1;
+    puff(kx,ky,"#5a8ae0",10);
+    try{ beep(700,.08,"sawtooth",.06); setTimeout(()=>beep(350,.12,"sawtooth",.06),50); }catch(e){}
+    return true;
+  }
   if(a==="teleport"){
     if(dist<260) return false;
     puff(kx,ky,"#2ee05a",12);
@@ -1218,7 +1298,8 @@ function updateKiller(k, dt){
       k.climbing=true; k.x=ladB*TILE+(TILE-k.w)/2; k.y+=6; k.vx=0; k.vy=0;
     } else {
       let targetX = target.x+target.w/2;
-      const spdMul = (k.dashT>0?2.6:1) * (k.rageT>0?1.55:1);
+      const dashMul = k.type.abil==="fling" ? 3.6 : 2.6;
+      const spdMul = (k.dashT>0?dashMul:1) * (k.rageT>0?1.55:1);
       if(wantUp){
         /* jump straight up through platforms when right under the prey */
         if(k.onGround && Math.abs(dx)<TILE*2.2 && dy>-TILE*4.2 && k.jumpCd<=0){
@@ -1244,7 +1325,7 @@ function updateKiller(k, dt){
       }
       k.vy=Math.min(k.vy+GRAV*dt,900);
       moveAndCollide(k, dt, true);
-      if(k.dashT>0) puff(k.x+k.w/2-k.face*10, k.y+k.h*0.6, "#cfd2d8", 1);
+      if(k.dashT>0) puff(k.x+k.w/2-k.face*10, k.y+k.h*0.6, k.type.abil==="fling"?"#5a8ae0":"#cfd2d8", k.type.abil==="fling"?2:1);
     }
   }
   if(Math.abs(k.vx)>20) k.anim+=dt*9;
@@ -1255,7 +1336,7 @@ function updateKiller(k, dt){
         s.life=0; /* clone pops — updateClones cleans it up */
         puff(s.x+s.w/2, s.y+s.h/2, "#e8e2d8", 12);
         try{ beep(500,.08,"sine",.04); }catch(e){}
-      } else hurtSurvivor(s, k.x);
+      } else hurtSurvivor(s, k.x, k.type.abil==="fling");
     }
   }
 }
@@ -1521,7 +1602,7 @@ function drawHUD(){
     cx.fillStyle="rgba(242,236,216,"+a+")";
     cx.fillText(state.matchTag||"", W/2, H/2+24);
     cx.fillStyle="rgba(155,148,184,"+a+")";
-    cx.fillText("30 SECONDS", W/2, H/2+40);
+    cx.fillText("♪ "+((LS_THEMES[state.lsTheme]||LS_THEMES.grave).name)+"  •  30 SECONDS", W/2, H/2+40);
     cx.textAlign="left";
   }
 }
@@ -1721,6 +1802,10 @@ function frame(now){
       const sv=SURVIVORS[state.skin];
       state.matchTitle = (nk?nk.type.name:"THE KILLERS")+"  VS  "+sv.name;
       state.matchTag = (nk && MATCHUPS[nk.type.id+"|"+sv.id]) || "No one is coming. Outlast them.";
+      /* the matchup picks the entire finale track */
+      state.lsTheme = (nk && LS_MATCH_THEME[nk.type.id+"|"+sv.id])
+                   || (nk && LS_KILLER_THEME[nk.type.id])
+                   || "grave";
       try{ [110,110,131,110].forEach((f,i)=>setTimeout(()=>beep(f,.22,"sawtooth",.09),i*130)); }catch(e){}
     }
     /* WIN only when timer is out AND every coin is collected */
