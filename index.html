@@ -14,7 +14,7 @@
 </script>
 
 <meta name="description" content="ChatStupidity is a fun browser game website with weird, colorful, pixel-style games you can play instantly. No downloads. No installs. Just chaos.">
-<meta name="keywords" content="ChatStupidity, browser games, free games, pixel games, funny games, stupid games, online games, Forsaken Escape 2, Asteroid Blaster">
+<meta name="keywords" content="ChatStupidity, browser games, free games, pixel games, funny games, stupid games, online games, Ninja F8, Forsaken Escape 2, Asteroid Blaster">
 <meta name="author" content="ChatStupidity">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://chatstupidity.com/">
@@ -58,8 +58,18 @@
   "name": "ChatStupidity Games",
   "itemListElement": [
     {
+      "@type":"VideoGame",
+      "position":1,
+      "name":"Ninja F8",
+      "url":"https://chatstupidity.com/ninja_f8.html",
+      "image":"https://chatstupidity.com/img/ninja_f8.png",
+      "description":"Jump, slice enemies, dodge danger, and discover why everyone keeps pressing F8.",
+      "gamePlatform":"Web Browser",
+      "applicationCategory":"Game"
+    },  
+    {
       "@type": "VideoGame",
-      "position": 1,
+      "position": 2,
       "name": "Forsaken Escape 2",
       "url": "https://chatstupidity.com/forsaken-escape.html",
       "image": "https://chatstupidity.com/img/forsaken-escape.png",
@@ -69,7 +79,7 @@
     },
     {
       "@type": "VideoGame",
-      "position": 2,
+      "position": 3,
       "name": "Asteroid Blaster",
       "url": "https://chatstupidity.com/asteroid_blaster.html",
       "image": "https://chatstupidity.com/img/asteroid_blaster.png",
@@ -161,7 +171,7 @@ header{
 
 .games{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(12,1fr);
   gap:4px;
   background:var(--black);
 }
@@ -178,7 +188,15 @@ header{
 
 .card:hover{transform:scale(0.98)}
 
-.card.large{grid-row:span 2}
+.card.large{
+  grid-column:span 4;
+  min-height:580px;
+}
+
+.card.teaser{
+  grid-column:span 3;
+  min-height:280px;
+}
 
 .card-content{
   position:absolute;
@@ -215,6 +233,7 @@ header{
 
 .forsaken{background:linear-gradient(135deg,#FF4C85,#FF7A2F)}
 .asteroid{background:linear-gradient(135deg,#31C8D7,#6A5CFF)}
+.ninja{background:linear-gradient(135deg,#52D89C,#8BE15D)}
 .money{background:var(--green)}
 .coming{background:var(--cyan)}
 .apple{background:var(--cream)}
@@ -299,6 +318,25 @@ footer{
   text-transform:uppercase;
 }
 
+@media(max-width:1200px) and (min-width:901px){
+  .games{
+    grid-template-columns:repeat(6,1fr);
+  }
+
+  .card.large{
+    grid-column:span 2;
+    min-height:560px;
+  }
+
+  .card.teaser{
+    grid-column:span 3;
+  }
+
+  .card h2{
+    font-size:42px;
+  }
+}
+
 @media(max-width:900px){
   header{
     display:block;
@@ -348,8 +386,10 @@ footer{
     border-top:8px dashed var(--black);
   }
 
-  .card.large{
+  .card.large,
+  .card.teaser{
     min-height:auto;
+    grid-column:auto;
   }
 
   .card-content{
@@ -424,6 +464,23 @@ footer{
 
 <section class="games" id="games">
 
+  <a href="ninja_f8.html" class="card large ninja" onclick="trackGameClick('Ninja F8')">
+    <div class="badge">PLAY NOW</div>
+
+    <div class="card-content">
+      <img class="game-image" src="img/ninja_f8.png" alt="Ninja F8">
+
+      <h2>Ninja<br>F8</h2>
+
+      <p>
+        Jump. Slice. Dodge.
+        Press F8 like your life depends on it.
+      </p>
+
+      <div class="play">Launch Game →</div>
+    </div>
+  </a>
+
   <a href="forsaken-escape.html" class="card large forsaken" onclick="trackGameClick('Forsaken Escape 2')">
     <div class="badge">PLAY NOW</div>
 
@@ -458,7 +515,7 @@ footer{
     </div>
   </a>
 
-  <div onclick="funPopup('mystery')" class="card money">
+  <div onclick="funPopup('mystery')" class="card teaser money">
     <div class="badge">COMING IN 54 YEARS</div>
     <div class="card-content">
       <h2>Mystery<br>Game</h2>
@@ -466,7 +523,7 @@ footer{
     </div>
   </div>
 
-  <div onclick="funPopup('unknown')" class="card apple">
+  <div onclick="funPopup('unknown')" class="card teaser apple">
     <div class="badge">SOON</div>
     <div class="card-content">
       <h2>????</h2>
@@ -474,7 +531,7 @@ footer{
     </div>
   </div>
 
-  <div onclick="funPopup('stupidity')" class="card bad">
+  <div onclick="funPopup('stupidity')" class="card teaser bad">
     <div class="badge">NEW</div>
     <div class="card-content">
       <h2>More<br>Stupidity</h2>
@@ -482,7 +539,7 @@ footer{
     </div>
   </div>
 
-  <div onclick="funPopup('secret')" class="card coming">
+  <div onclick="funPopup('secret')" class="card teaser coming">
     <div class="badge">DO NOT CLICK</div>
     <div class="card-content">
       <h2>Secret<br>Project</h2>
