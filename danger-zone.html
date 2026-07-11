@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DANGER ZONE — Hypersonic Ring Trials</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --hud:#39ff8e;
+    --hud-dim:rgba(57,255,142,.55);
+    --amber:#ffb347;
+    --red:#ff4655;
+    --panel:rgba(4,12,8,.72);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Courier New',monospace;color:var(--hud)}
+  #game{position:fixed;inset:0}
+  canvas{display:block}
+
+  /* ---------- HUD ---------- */
+  .hud{position:fixed;pointer-events:none;text-shadow:0 0 8px rgba(57,255,142,.6);letter-spacing:1px}
+  #hudTop{top:14px;left:50%;transform:translateX(-50%);display:flex;gap:26px;background:var(--panel);border:1px solid var(--hud-dim);padding:8px 22px;border-radius:4px;font-size:15px}
+  #hudTop b{color:#fff}
+  #timer{font-size:22px;color:var(--amber);min-width:70px;text-align:center}
+  #timer.low{color:var(--red);animation:blink .5s steps(2) infinite}
+  @keyframes blink{50%{opacity:.25}}
+  #hudLeft{left:16px;top:50%;transform:translateY(-50%);font-size:13px;line-height:1.9;background:var(--panel);border-left:2px solid var(--hud);padding:10px 14px}
+  #hudRight{right:16px;top:50%;transform:translateY(-50%);font-size:13px;line-height:1.9;text-align:right;background:var(--panel);border-right:2px solid var(--hud);padding:10px 14px}
+  #ringsLeft{font-size:20px;color:#fff}
+  #msg{top:22%;left:50%;transform:translateX(-50%);font-size:30px;color:#fff;text-shadow:0 0 20px var(--hud);opacity:0;transition:opacity .25s;font-weight:bold}
+  #crosshair{top:50%;left:50%;transform:translate(-50%,-50%);width:34px;height:34px;border:1.5px solid var(--hud-dim);border-radius:50%}
+  #crosshair::before,#crosshair::after{content:'';position:absolute;background:var(--hud-dim)}
+  #crosshair::before{width:1px;height:10px;left:50%;top:-14px}
+  #crosshair::after{width:1px;height:10px;left:50%;bottom:-14px}
+  #arrow{top:12%;left:50%;transform:translateX(-50%);font-size:34px;color:var(--amber);text-shadow:0 0 12px var(--amber)}
+
+  /* ---------- Screens ---------- */
+  .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,#07140c 0%,#010502 70%);z-index:20}
+  .screen.hidden{display:none}
+  .stencil{font-size:clamp(38px,8vw,84px);font-weight:900;letter-spacing:.12em;color:#fff;text-shadow:0 0 30px var(--hud),0 0 60px rgba(57,255,142,.4)}
+  .stencil span{color:var(--hud)}
+  .sub{margin-top:6px;font-size:14px;letter-spacing:.5em;color:var(--hud-dim);text-transform:uppercase}
+  .callsign{margin-top:26px;font-size:13px;color:#8fa;max-width:520px;text-align:center;line-height:1.8;padding:0 20px}
+  .btn{pointer-events:auto;margin-top:30px;background:transparent;border:1px solid var(--hud);color:var(--hud);font-family:inherit;font-size:17px;letter-spacing:.3em;padding:14px 46px;cursor:pointer;text-transform:uppercase;transition:.2s}
+  .btn:hover{background:var(--hud);color:#00140a;box-shadow:0 0 30px rgba(57,255,142,.7)}
+  #missionGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:34px;max-width:760px;padding:0 16px}
+  .mission{border:1px solid var(--hud-dim);padding:12px 10px;cursor:pointer;text-align:center;transition:.15s;background:rgba(0,20,10,.5)}
+  .mission:hover{border-color:#fff;background:rgba(57,255,142,.12)}
+  .mission.locked{opacity:.32;cursor:not-allowed}
+  .mission .n{font-size:22px;color:#fff}
+  .mission .t{font-size:10px;letter-spacing:.1em;margin-top:4px;text-transform:uppercase}
+  .mission .best{font-size:10px;color:var(--amber);margin-top:4px;min-height:12px}
+  #resultTitle{font-size:46px;font-weight:900;letter-spacing:.15em;color:#fff}
+  #resultStats{margin-top:18px;font-size:16px;line-height:2.2;text-align:center}
+  .controlsHint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--hud-dim);letter-spacing:.15em;background:var(--panel);padding:6px 18px;border-radius:4px}
+  @media(max-width:640px){#missionGrid{grid-template-columns:repeat(2,1fr)}#hudLeft,#hudRight{display:none!important}#ctrlHint{display:none!important}}
+
+  /* ---------- Mobile controls ---------- */
+  #stick{position:fixed;left:26px;bottom:26px;width:130px;height:130px;border:2px solid var(--hud-dim);border-radius:50%;background:rgba(4,12,8,.45);touch-action:none;z-index:15}
+  #knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(57,255,142,.35);border:2px solid var(--hud);box-shadow:0 0 14px rgba(57,255,142,.5)}
+  .thrBtn{position:fixed;right:26px;width:76px;height:76px;border-radius:50%;border:2px solid var(--hud-dim);background:rgba(4,12,8,.55);color:var(--hud);font-family:inherit;font-size:13px;font-weight:bold;letter-spacing:.05em;touch-action:none;z-index:15;user-select:none;-webkit-user-select:none}
+  .thrBtn:active{background:rgba(57,255,142,.3);border-color:var(--hud)}
+  #thrUp{bottom:126px}
+  #thrDn{bottom:32px}
+  #stick,.thrBtn{display:none}
+  body.touch #stick, body.touch .thrBtn{display:block}
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<!-- HUD -->
+<div class="hud" id="hudTop" style="display:none">
+  <div>MISSION <b id="hLvl">1</b>/20</div>
+  <div id="timer">60.0</div>
+  <div>RINGS <b id="ringsLeft">0</b></div>
+  <div>SCORE <b id="hScore">0</b></div>
+</div>
+<div class="hud" id="hudLeft" style="display:none">
+  SPD <b id="hSpd">0</b> KTS<br>
+  THR <b id="hThr">0</b>%<br>
+  G-LOAD <b id="hG">1.0</b>
+</div>
+<div class="hud" id="hudRight" style="display:none">
+  ALT <b id="hAlt">0</b> FT<br>
+  HDG <b id="hHdg">000</b>°<br>
+  <span id="hZone">—</span>
+</div>
+<div class="hud" id="crosshair" style="display:none"></div>
+<div class="hud" id="arrow" style="display:none">▲</div>
+<div class="hud" id="msg"></div>
+<div class="controlsHint" id="ctrlHint" style="display:none">MOUSE / ARROWS: STEER &nbsp;·&nbsp; W/S: THROTTLE &nbsp;·&nbsp; A/D: ROLL &nbsp;·&nbsp; ESC: ABORT</div>
+
+<!-- Mobile controls -->
+<div id="stick"><div id="knob"></div></div>
+<button class="thrBtn" id="thrUp">THR +</button>
+<button class="thrBtn" id="thrDn">THR −</button>
+<button class="thrBtn" id="abortBtn" style="top:14px;right:14px;bottom:auto;width:44px;height:44px;font-size:16px;color:var(--red);border-color:rgba(255,70,85,.5)">✕</button>
+
+<!-- TITLE -->
+<div class="screen" id="titleScreen">
+  <div class="stencil">DANGER<span>ZONE</span></div>
+  <div class="sub">Hypersonic Ring Trials</div>
+  <div class="callsign">CALLSIGN REQUIRED, AVIATOR. TWENTY MISSIONS. SIXTY SECONDS EACH.<br>
+  THREAD EVERY RING BEFORE THE CLOCK HITS ZERO — OR FLY HOME A GHOST.<br>
+  <span style="color:#ffb347">"I FEEL THE NEED... THE NEED FOR SPEED."</span></div>
+  <button class="btn" onclick="showMissions()">ENTER THE ZONE</button>
+</div>
+
+<!-- MISSION SELECT -->
+<div class="screen hidden" id="missionScreen">
+  <div class="stencil" style="font-size:34px">MISSION BOARD</div>
+  <div class="sub">Select Theater of Operations</div>
+  <div id="missionGrid"></div>
+  <button class="btn" style="margin-top:24px;font-size:12px;padding:8px 26px" onclick="backToTitle()">◄ BACK</button>
+</div>
+
+<!-- RESULT -->
+<div class="screen hidden" id="resultScreen">
+  <div id="resultTitle">MISSION COMPLETE</div>
+  <div id="resultStats"></div>
+  <div style="display:flex;gap:16px">
+    <button class="btn" id="btnRetry">RETRY</button>
+    <button class="btn" id="btnNext">NEXT MISSION</button>
+    <button class="btn" onclick="showMissions()">BOARD</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   DANGER ZONE — Hypersonic Ring Trials
+   Ten theaters. Sixty seconds. Thread the needle.
+========================================================= */
+'use strict';
+
+// ---------- Scenarios ----------
+const SCENARIOS = [
+ {name:'MIRAMAR CITY',   zone:'URBAN CANYON',  sky:0x7ec8e3, skyB:0xd7ecf5, fog:0xbfe0ee, sun:0xfff2cc, ground:0x5b6f5d, deco:'city',    rings:5,  fogD:.0016},
+ {name:'MOJAVE FURNACE', zone:'DESERT LOW-ALT',sky:0xf6b26b, skyB:0xffe4b0, fog:0xf0c690, sun:0xfff0d0, ground:0xc98f4e, deco:'canyon',  rings:5,  fogD:.0015},
+ {name:'CARRIER STRIKE', zone:'OPEN PACIFIC',  sky:0x4a90c2, skyB:0xbfe3f2, fog:0xa8cfe0, sun:0xffffff, ground:0x1b4d6b, deco:'ocean',   rings:6,  fogD:.0013},
+ {name:'ICE STATION',    zone:'ARCTIC SHELF',  sky:0x9fb8cc, skyB:0xe8f2f8, fog:0xdde9f0, sun:0xeef4ff, ground:0xe8eef2, deco:'arctic',  rings:6,  fogD:.0018},
+ {name:'MIDNIGHT OPS',   zone:'NIGHT SORTIE',  sky:0x060a18, skyB:0x101830, fog:0x0a1020, sun:0x8899cc, ground:0x0c1410, deco:'night',   rings:6,  fogD:.0020},
+ {name:'VOLCANO RUN',    zone:'LAVA FIELDS',   sky:0x3a1410, skyB:0x8a3020, fog:0x55201a, sun:0xff8855, ground:0x241012, deco:'volcano', rings:7,  fogD:.0022},
+ {name:'STORM FRONT',    zone:'THUNDERHEAD',   sky:0x39424e, skyB:0x6b7684, fog:0x545e6a, sun:0xaab4c0, ground:0x2e4438, deco:'storm',   rings:7,  fogD:.0026},
+ {name:'JUNGLE GAUNTLET',zone:'TRIPLE CANOPY', sky:0x8fc9a8, skyB:0xd8efc8, fog:0xa9d4b4, sun:0xfff6cc, ground:0x2f5a34, deco:'jungle',  rings:7,  fogD:.0022},
+ {name:'NEON HARBOR',    zone:'MEGACITY 2099', sky:0x120a2a, skyB:0x2a1450, fog:0x1a1038, sun:0xcc66ff, ground:0x0a0618, deco:'neon',    rings:8,  fogD:.0020},
+ {name:'STRATOSPHERE',   zone:'EDGE OF SPACE', sky:0x030614, skyB:0x1a3a7a, fog:0x081226, sun:0xffffff, ground:0x0d1b33, deco:'space',   rings:8,  fogD:.0008},
+ {name:'GOLDEN HOUR',    zone:'SUNSET ISLES',  sky:0xff8c42, skyB:0xffd9a0, fog:0xf5b880, sun:0xffc06a, ground:0x1e4a5a, deco:'sunset',  rings:8,  fogD:.0014},
+ {name:'AURORA SECTOR',  zone:'POLAR NIGHT',   sky:0x04101e, skyB:0x0a2438, fog:0x081826, sun:0x88ffcc, ground:0xdce8ee, deco:'aurora',  rings:9,  fogD:.0016},
+ {name:'SANDSTORM ALLEY',zone:'ZERO VISIBILITY',sky:0xc9a05a,skyB:0xe8cc94, fog:0xd4ae6e, sun:0xffe0a8, ground:0xb5854a, deco:'sandstorm',rings:9, fogD:.0030},
+ {name:'CORAL ATOLL',    zone:'TROPICAL STRIKE',sky:0x37b6e0,skyB:0xc8f0f8, fog:0xa0e0ee, sun:0xffffff, ground:0x0e7a96, deco:'atoll',   rings:9,  fogD:.0012},
+ {name:'LOST TEMPLES',   zone:'ANCIENT VALLEY',sky:0xd9b98a, skyB:0xf2e2c0, fog:0xd8c298, sun:0xffe8b0, ground:0x7a6a3e, deco:'ruins',   rings:10, fogD:.0018},
+ {name:'WHITEOUT',       zone:'BLIZZARD RUN',  sky:0xc8d4dc, skyB:0xf0f4f8, fog:0xe4ecf2, sun:0xdde8f0, ground:0xf2f6f8, deco:'blizzard',rings:10, fogD:.0034},
+ {name:'RED PLANET',     zone:'MARS LOW ORBIT',sky:0x8a4530, skyB:0xd9906a, fog:0xa85a3c, sun:0xffb890, ground:0x8a4a30, deco:'mars',    rings:10, fogD:.0016},
+ {name:'TURBINE FIELDS', zone:'GREEN CORRIDOR',sky:0x6db3d9, skyB:0xd0ecf5, fog:0xbcdfea, sun:0xfff8dc, ground:0x4a7a3a, deco:'windfarm',rings:11, fogD:.0014},
+ {name:'ASTEROID BELT',  zone:'DEEP SPACE',    sky:0x020308, skyB:0x0a0e1e, fog:0x050810, sun:0xccddff, ground:0x080a14, deco:'asteroid',rings:11, fogD:.0006},
+ {name:'GRADUATION DAY', zone:'TOP GUN FINALE',sky:0xffb347, skyB:0xffe8c0, fog:0xf8cd90, sun:0xfff0c8, ground:0x1c4d6b, deco:'finale',  rings:12, fogD:.0012},
+];
+
+// ---------- State ----------
+let renderer, scene, camera, jet, exhaustL, exhaustR, contrails=[];
+let rings=[], ringGroup, decoGroup;
+let level=0, score=0, timeLeft=60, playing=false, unlocked=1;
+let vel=0, throttle=.65, pitch=0, yaw=0, roll=0, gLoad=1;
+const keys={};
+let mouseX=0, mouseY=0, useMouse=false;
+let clock, lastMsg=0;
+try{ unlocked = Math.max(1, parseInt(sessionStorage.getItem('dz_unlocked')||'1')); }catch(e){}
+let best = {};
+try{ best = JSON.parse(sessionStorage.getItem('dz_best')||'{}'); }catch(e){}
+
+// ---------- Renderer / Scene ----------
+function initGL(){
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.getElementById('game').appendChild(renderer.domElement);
+  camera = new THREE.PerspectiveCamera(72, innerWidth/innerHeight, .1, 6000);
+  clock = new THREE.Clock();
+  addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+}
+
+// ---------- Jet (F-style fighter built from primitives) ----------
+function buildJet(){
+  const g = new THREE.Group();
+  const grey = new THREE.MeshStandardMaterial({color:0x8d949c, metalness:.75, roughness:.35});
+  const dark = new THREE.MeshStandardMaterial({color:0x3c4249, metalness:.7, roughness:.4});
+  const glass= new THREE.MeshStandardMaterial({color:0x224466, metalness:.9, roughness:.1, transparent:true, opacity:.85});
+
+  // fuselage — tapered nose to tail
+  const fus = new THREE.Mesh(new THREE.CylinderGeometry(.55,.28,9,14), grey);
+  fus.rotation.x = Math.PI/2; g.add(fus);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(.28,2.4,14), dark);
+  nose.rotation.x = -Math.PI/2; nose.position.z = -5.6; g.add(nose);
+
+  // canopy
+  const can = new THREE.Mesh(new THREE.SphereGeometry(.55,14,10), glass);
+  can.scale.set(.8,.75,2.1); can.position.set(0,.5,-2.4); g.add(can);
+
+  // main delta wings (swept)
+  const wingShape = new THREE.Shape();
+  wingShape.moveTo(0,0); wingShape.lineTo(5.2,3.4); wingShape.lineTo(5.2,4.4); wingShape.lineTo(0,2.6); wingShape.lineTo(0,0);
+  const wingGeo = new THREE.ExtrudeGeometry(wingShape,{depth:.12,bevelEnabled:false});
+  const wingR = new THREE.Mesh(wingGeo,grey);
+  wingR.rotation.x = Math.PI/2; wingR.position.set(.3,0,-1.2); g.add(wingR);
+  const wingL = wingR.clone(); wingL.scale.x=-1; wingL.position.x=-.3; g.add(wingL);
+
+  // horizontal stabilizers
+  const stabGeo = new THREE.ExtrudeGeometry((()=>{const s=new THREE.Shape();s.moveTo(0,0);s.lineTo(2.1,1.2);s.lineTo(2.1,1.8);s.lineTo(0,1.1);return s;})(),{depth:.09,bevelEnabled:false});
+  const stR = new THREE.Mesh(stabGeo,grey); stR.rotation.x=Math.PI/2; stR.position.set(.25,0,2.6); g.add(stR);
+  const stL = stR.clone(); stL.scale.x=-1; stL.position.x=-.25; g.add(stL);
+
+  // twin vertical tails, canted
+  const tailGeo = new THREE.ExtrudeGeometry((()=>{const s=new THREE.Shape();s.moveTo(0,0);s.lineTo(1.6,0);s.lineTo(2.4,1.9);s.lineTo(1.7,1.9);return s;})(),{depth:.09,bevelEnabled:false});
+  const tR = new THREE.Mesh(tailGeo,dark); tR.rotation.y=Math.PI/2; tR.rotation.z=.18; tR.position.set(.55,.3,1.6); g.add(tR);
+  const tL = new THREE.Mesh(tailGeo,dark); tL.rotation.y=Math.PI/2; tL.rotation.z=-.18; tL.position.set(-.55,.3,1.6); g.add(tL);
+
+  // intakes
+  const intGeo = new THREE.BoxGeometry(.55,.55,2.4);
+  const iR = new THREE.Mesh(intGeo,dark); iR.position.set(.72,-.12,-.8); g.add(iR);
+  const iL = iR.clone(); iL.position.x=-.72; g.add(iL);
+
+  // engines / afterburner glow
+  const nozGeo = new THREE.CylinderGeometry(.32,.24,.9,12);
+  const nR = new THREE.Mesh(nozGeo,dark); nR.rotation.x=Math.PI/2; nR.position.set(.35,0,4.6); g.add(nR);
+  const nL = nR.clone(); nL.position.x=-.35; g.add(nL);
+  const flameMat = new THREE.MeshBasicMaterial({color:0x66ccff, transparent:true, opacity:.9});
+  exhaustR = new THREE.Mesh(new THREE.ConeGeometry(.2,1.6,10), flameMat);
+  exhaustR.rotation.x = -Math.PI/2; exhaustR.position.set(.35,0,5.6); g.add(exhaustR);
+  exhaustL = exhaustR.clone(); exhaustL.position.x=-.35; g.add(exhaustL);
+
+  g.traverse(o=>{if(o.isMesh){o.castShadow=true;}});
+  g.scale.setScalar(1.15);
+  return g;
+}
+
+// ---------- Environment decor per scenario ----------
+function rand(a,b){return a+Math.random()*(b-a);}
+function buildDeco(s){
+  const grp = new THREE.Group();
+  const R = 2200;
+  const add = m=>grp.add(m);
+  const lambert = c=>new THREE.MeshLambertMaterial({color:c});
+
+  if(s.deco==='city' || s.deco==='neon'){
+    const neon = s.deco==='neon';
+    for(let i=0;i<160;i++){
+      const w=rand(18,55), h=rand(60,neon?420:300);
+      const col = neon ? [0x1a1235,0x241848,0x120c28][i%3] : [0x9aa4ae,0x7d8791,0xb4bcc4][i%3];
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w,h,w), lambert(col));
+      b.position.set(rand(-R,R), h/2, rand(-R,R)); add(b);
+      if(neon){
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(w+2,4,w+2),
+          new THREE.MeshBasicMaterial({color:[0xff2d95,0x00e5ff,0xb84dff][i%3]}));
+        strip.position.copy(b.position); strip.position.y = rand(20,h); add(strip);
+      }
+    }
+  }
+  if(s.deco==='canyon' || s.deco==='volcano'){
+    const col = s.deco==='volcano'?0x2a1616:0xb07a3e;
+    for(let i=0;i<120;i++){
+      const m = new THREE.Mesh(new THREE.ConeGeometry(rand(40,120),rand(80,300),7), lambert(col));
+      m.position.set(rand(-R,R),0,rand(-R,R)); m.rotation.y=Math.random()*7; add(m);
+    }
+    if(s.deco==='volcano'){
+      for(let i=0;i<40;i++){
+        const l = new THREE.Mesh(new THREE.CircleGeometry(rand(25,90),12),
+          new THREE.MeshBasicMaterial({color:0xff5a1f}));
+        l.rotation.x=-Math.PI/2; l.position.set(rand(-R,R),1.5,rand(-R,R)); add(l);
+      }
+    }
+  }
+  if(s.deco==='ocean'){
+    // carrier
+    const c = new THREE.Group();
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(70,18,330), lambert(0x555f66));
+    deck.position.y=9; c.add(deck);
+    const isl = new THREE.Mesh(new THREE.BoxGeometry(16,42,40), lambert(0x6b757c));
+    isl.position.set(22,39,20); c.add(isl);
+    c.position.set(0,0,-500); add(c);
+    for(let i=0;i<25;i++){
+      const s2 = new THREE.Mesh(new THREE.BoxGeometry(14,10,rand(50,90)), lambert(0x616b72));
+      s2.position.set(rand(-R,R),5,rand(-R,R)); add(s2);
+    }
+  }
+  if(s.deco==='arctic'){
+    for(let i=0;i<110;i++){
+      const m = new THREE.Mesh(new THREE.ConeGeometry(rand(30,90),rand(50,220),6), lambert(0xffffff));
+      m.position.set(rand(-R,R),0,rand(-R,R)); add(m);
+    }
+  }
+  if(s.deco==='night'){
+    for(let i=0;i<130;i++){
+      const h=rand(50,260);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(rand(18,45),h,rand(18,45)), lambert(0x10161c));
+      b.position.set(rand(-R,R),h/2,rand(-R,R)); add(b);
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(6,6), new THREE.MeshBasicMaterial({color:0xffd27a}));
+      win.position.set(b.position.x, rand(10,h), b.position.z+23); add(win);
+    }
+    // stars
+    const starGeo = new THREE.BufferGeometry();
+    const pos=[];
+    for(let i=0;i<800;i++){const v=new THREE.Vector3().setFromSphericalCoords(2800,Math.random()*1.2,Math.random()*Math.PI*2);pos.push(v.x,Math.abs(v.y)+200,v.z);}
+    starGeo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:3})));
+  }
+  if(s.deco==='storm'){
+    for(let i=0;i<60;i++){
+      const cl = new THREE.Mesh(new THREE.SphereGeometry(rand(60,160),8,6),
+        new THREE.MeshLambertMaterial({color:0x6a7480, transparent:true, opacity:.65}));
+      cl.position.set(rand(-R,R),rand(150,600),rand(-R,R)); cl.scale.y=.5; add(cl);
+    }
+    for(let i=0;i<70;i++){
+      const m = new THREE.Mesh(new THREE.ConeGeometry(rand(40,90),rand(60,180),6), lambert(0x22362a));
+      m.position.set(rand(-R,R),0,rand(-R,R)); add(m);
+    }
+  }
+  if(s.deco==='jungle'){
+    for(let i=0;i<300;i++){
+      const t = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(2,3,rand(20,45)), lambert(0x5a3b22));
+      const top = new THREE.Mesh(new THREE.SphereGeometry(rand(12,26),7,6), lambert([0x2e7d32,0x1f6b28,0x3b8f3e][i%3]));
+      top.position.y = trunk.geometry.parameters.height/2+8;
+      t.add(trunk,top);
+      t.position.set(rand(-R,R),trunk.geometry.parameters.height/2,rand(-R,R)); add(t);
+    }
+    for(let i=0;i<20;i++){
+      const m = new THREE.Mesh(new THREE.ConeGeometry(rand(80,150),rand(150,350),7), lambert(0x3e6b3a));
+      m.position.set(rand(-R,R),0,rand(-R,R)); add(m);
+    }
+  }
+  if(s.deco==='space'){
+    const starGeo = new THREE.BufferGeometry();
+    const pos=[];
+    for(let i=0;i<2200;i++){const v=new THREE.Vector3().setFromSphericalCoords(2900,Math.random()*Math.PI,Math.random()*Math.PI*2);pos.push(v.x,v.y+400,v.z);}
+    starGeo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:2.4})));
+    // curvature glow band — gold for the final Top Gun Trial, blue otherwise
+    const band = new THREE.Mesh(new THREE.TorusGeometry(2400,60,8,60),
+      new THREE.MeshBasicMaterial({color:s.zone==='TOP GUN TRIAL'?0xffcc44:0x3d7dff, transparent:true, opacity:.35}));
+    band.rotation.x=Math.PI/2; band.position.y=-40; add(band);
+  }
+  if(s.deco==='islands'){
+    for(let i=0;i<60;i++){
+      const isl = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.ConeGeometry(rand(60,140),rand(30,80),8), lambert(0xe8d8a0));
+      base.rotation.x=Math.PI; base.position.y=10; isl.add(base);
+      for(let j=0;j<4;j++){
+        const palm = new THREE.Mesh(new THREE.SphereGeometry(rand(10,20),6,5), lambert(0x2e8b40));
+        palm.position.set(rand(-40,40),rand(20,40),rand(-40,40)); isl.add(palm);
+      }
+      isl.position.set(rand(-R,R),0,rand(-R,R)); add(isl);
+    }
+  }
+  if(s.deco==='dunes'){
+    for(let i=0;i<140;i++){
+      const d = new THREE.Mesh(new THREE.SphereGeometry(rand(60,180),8,6), lambert([0xd6a35c,0xc8944e,0xe0b06a][i%3]));
+      d.scale.y=.25; d.position.set(rand(-R,R),0,rand(-R,R)); add(d);
+    }
+  }
+  if(s.deco==='aurora'){
+    // snowy peaks
+    for(let i=0;i<90;i++){
+      const m = new THREE.Mesh(new THREE.ConeGeometry(rand(40,100),rand(60,240),6), lambert(0xe8f0f6));
+      m.position.set(rand(-R,R),0,rand(-R,R)); add(m);
+    }
+    // aurora ribbons
+    for(let i=0;i<6;i++){
+      const rib = new THREE.Mesh(new THREE.PlaneGeometry(2400,rand(120,260),40,1),
+        new THREE.MeshBasicMaterial({color:[0x39ff8e,0x44ddff,0xbb66ff][i%3], transparent:true, opacity:.16, side:THREE.DoubleSide, depthWrite:false}));
+      rib.position.set(rand(-800,800), rand(500,900), rand(-800,800));
+      rib.rotation.y = Math.random()*Math.PI;
+      add(rib);
+    }
+    // stars
+    const starGeo = new THREE.BufferGeometry(); const pos=[];
+    for(let i=0;i<600;i++){const v=new THREE.Vector3().setFromSphericalCoords(2800,Math.random()*1.2,Math.random()*Math.PI*2);pos.push(v.x,Math.abs(v.y)+200,v.z);}
+    starGeo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:2.5})));
+  }
+  if(s.deco==='clouds'){
+    for(let i=0;i<110;i++){
+      const cl = new THREE.Mesh(new THREE.SphereGeometry(rand(50,150),8,6),
+        new THREE.MeshLambertMaterial({color:0xffffff, transparent:true, opacity:.85}));
+      cl.scale.y=.4; cl.position.set(rand(-R,R),rand(40,140),rand(-R,R)); add(cl);
+    }
+  }
+  if(s.deco==='mars'){
+    for(let i=0;i<120;i++){
+      const m = new THREE.Mesh(new THREE.ConeGeometry(rand(40,110),rand(50,220),6), lambert([0xa8543a,0x8a4028,0xbf6a48][i%3]));
+      m.position.set(rand(-R,R),0,rand(-R,R)); add(m);
+    }
+    for(let i=0;i<50;i++){
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(8,25)), lambert(0x7a3a26));
+      rock.position.set(rand(-R,R),rand(4,12),rand(-R,R)); add(rock);
+    }
+  }
+  return grp;
+}
+
+// ---------- Rings ----------
+function buildRings(s){
+  const grp = new THREE.Group();
+  rings = [];
+  // Difficulty ramps AFTER mission 3 (level index 3+), capped so late missions stay flyable
+  const diff = Math.min(10, Math.max(0, level - 2));  // 0 for missions 1-3, up to 10
+  const maxTurn  = .22 + diff*.09;                // sharper corners
+  const maxClimb = .12 + diff*.07;                // bigger dives & climbs
+  const radius   = Math.max(24, 48 - diff*3.5);   // rings shrink each mission
+  const loY = Math.max(60, 160 - diff*15);        // course can drop lower...
+  const hiY = 320 + diff*60;                      // ...and climb higher
+
+  // Jet spawns facing +Z, so the course runs along +Z
+  let p = new THREE.Vector3(0, 220, 200);
+  let dir = new THREE.Vector3(0,0,1);
+
+  function addRing(pos, r, surprise){
+    const mat = new THREE.MeshBasicMaterial({color: surprise?0x66d9ff:0xffe14d});
+    const torus = new THREE.Mesh(new THREE.TorusGeometry(r, 5, 10, 40), mat);
+    torus.position.copy(pos);
+    torus.lookAt(pos.clone().add(dir));
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(r-4, 32),
+      new THREE.MeshBasicMaterial({color:surprise?0xd0f2ff:0xfff7c0, transparent:true, opacity:.22, side:THREE.DoubleSide, depthWrite:false}));
+    torus.add(disc);
+    const beacon = new THREE.Mesh(new THREE.CylinderGeometry(4,4,900,8,1,true),
+      new THREE.MeshBasicMaterial({color:surprise?0x66d9ff:0xffe14d, transparent:true, opacity:.28, side:THREE.DoubleSide, depthWrite:false}));
+    beacon.position.set(pos.x, 450, pos.z);
+    grp.add(beacon, torus);
+    rings.push({mesh:torus, r:r, hit:false, beacon:beacon, surprise:!!surprise});
+  }
+
+  for(let i=0;i<s.rings;i++){
+    const turn = rand(-maxTurn, maxTurn), climb = rand(-maxClimb, maxClimb);
+    dir.applyAxisAngle(new THREE.Vector3(0,1,0), turn);
+    p = p.clone().addScaledVector(dir, rand(260,320));
+    p.y = THREE.MathUtils.clamp(p.y + climb*220, loY, hiY);
+    addRing(p, radius, false);
+
+    // From mission 4 on: sometimes a BLUE bonus ring off to the side —
+    // "rings in other places" that pull you off the main line
+    if(diff>0 && Math.random() < .25 + diff*.06 && i < s.rings-1){
+      const side = new THREE.Vector3(dir.z, 0, -dir.x).multiplyScalar((Math.random()<.5?-1:1)*rand(120,200+diff*30));
+      const off = p.clone().add(side);
+      off.y = THREE.MathUtils.clamp(off.y + rand(-120,140), loY, hiY);
+      addRing(off, radius*.9, true);
+    }
+  }
+  return grp;
+}
+
+// ---------- Scene setup per mission ----------
+function loadMission(idx){
+  level = idx;
+  const s = SCENARIOS[idx];
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(s.fog, s.fogD*.45);  // lighter fog so kids can see the rings far ahead
+
+  // sky dome (gradient via two hemispheres)
+  const skyGeo = new THREE.SphereGeometry(3000, 24, 16);
+  const skyMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms:{top:{value:new THREE.Color(s.sky)}, bottom:{value:new THREE.Color(s.skyB)}},
+    vertexShader:'varying vec3 vP; void main(){vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader:'uniform vec3 top; uniform vec3 bottom; varying vec3 vP; void main(){float h=normalize(vP).y*.5+.5; gl_FragColor=vec4(mix(bottom,top,pow(h,.7)),1.);}'
+  });
+  scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+  // lights
+  const sun = new THREE.DirectionalLight(s.sun, s.deco==='night'?.4:1.05);
+  sun.position.set(300,600,200); scene.add(sun);
+  scene.add(new THREE.AmbientLight(0xffffff, s.deco==='night'||s.deco==='space'?.35:.55));
+  if(s.deco==='volcano') scene.add(new THREE.PointLight(0xff4400,1.4,1500).position.set(0,100,0) && new THREE.AmbientLight(0xff5522,.25));
+
+  // ground
+  if(s.deco!=='space'){
+    const gnd = new THREE.Mesh(new THREE.PlaneGeometry(9000,9000,40,40), new THREE.MeshLambertMaterial({color:s.ground}));
+    gnd.rotation.x = -Math.PI/2; gnd.receiveShadow = true; scene.add(gnd);
+    if(s.deco==='ocean'){ gnd.material.transparent=true; gnd.material.opacity=.94; }
+  } else {
+    const gnd = new THREE.Mesh(new THREE.SphereGeometry(2600,32,20), new THREE.MeshLambertMaterial({color:s.ground}));
+    gnd.position.y=-2550; scene.add(gnd);
+  }
+
+  decoGroup = buildDeco(s); scene.add(decoGroup);
+  ringGroup = buildRings(s); scene.add(ringGroup);
+
+  // jet
+  jet = buildJet();
+  jet.position.set(0, 220, 0);
+  scene.add(jet);
+
+  // reset flight state
+  vel=3.2; throttle=.65; pitch=0; yaw=Math.PI; roll=0; score=0; timeLeft=60; gLoad=1;
+  jet.rotation.set(0, Math.PI, 0);
+  contrails.forEach(c=>scene.remove(c.mesh)); contrails=[];
+
+  document.getElementById('hLvl').textContent = idx+1;
+  document.getElementById('hZone').textContent = s.zone;
+  document.getElementById('ringsLeft').textContent = rings.length;
+  showHUD(true);
+  flashMsg(s.name + ' — GO GO GO!');
+  playing = true;
+}
+
+// ---------- Input ----------
+addEventListener('keydown',e=>{keys[e.code]=true; useMouse=false; if(e.code==='Escape'&&playing) endMission(false,true);});
+addEventListener('keyup',e=>{keys[e.code]=false;});
+addEventListener('mousemove',e=>{
+  mouseX = (e.clientX/innerWidth - .5)*2;
+  mouseY = (e.clientY/innerHeight - .5)*2;
+  useMouse = true;
+});
+// ---------- Mobile: virtual joystick + throttle buttons ----------
+let stickX=0, stickY=0, useStick=false, thrUpHeld=false, thrDnHeld=false;
+const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints>0;
+if(isTouch) document.body.classList.add('touch');
+
+(function(){
+  const stick = document.getElementById('stick');
+  const knob  = document.getElementById('knob');
+  let stickId = null;
+
+  function setKnob(dx,dy){
+    knob.style.transform = 'translate('+dx+'px,'+dy+'px)';
+  }
+  function handleStick(t){
+    const r = stick.getBoundingClientRect();
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    let dx = t.clientX - cx, dy = t.clientY - cy;
+    const max = r.width/2 - 20;
+    const len = Math.hypot(dx,dy);
+    if(len > max){ dx = dx/len*max; dy = dy/len*max; }
+    setKnob(dx,dy);
+    stickX = dx/max;           // -1..1  → yaw/roll
+    stickY = dy/max;           // -1..1  → pitch (down = pull up feel inverted below)
+    useStick = true; useMouse = false;
+  }
+  stick.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    stickId = e.changedTouches[0].identifier;
+    handleStick(e.changedTouches[0]);
+  },{passive:false});
+  stick.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches) if(t.identifier===stickId) handleStick(t);
+  },{passive:false});
+  const release = e=>{
+    for(const t of e.changedTouches) if(t.identifier===stickId){
+      stickId=null; stickX=0; stickY=0; setKnob(0,0);
+    }
+  };
+  stick.addEventListener('touchend',release);
+  stick.addEventListener('touchcancel',release);
+
+  // throttle buttons (hold to change)
+  const bind = (id, on, off)=>{
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart',e=>{e.preventDefault(); on();},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault(); off();},{passive:false});
+    el.addEventListener('touchcancel',off);
+    // also support mouse for hybrid devices
+    el.addEventListener('mousedown',on);
+    el.addEventListener('mouseup',off);
+    el.addEventListener('mouseleave',off);
+  };
+  bind('thrUp', ()=>thrUpHeld=true,  ()=>thrUpHeld=false);
+  bind('thrDn', ()=>thrDnHeld=true,  ()=>thrDnHeld=false);
+  document.getElementById('abortBtn').addEventListener('click',()=>{ if(playing) endMission(false,true); });
+})();
+
+// ---------- Flight model ----------
+function updateFlight(dt){
+  // throttle
+  if(keys['KeyW'] || thrUpHeld) throttle = Math.min(1, throttle + dt*.6);
+  if(keys['KeyS'] || thrDnHeld) throttle = Math.max(.25, throttle - dt*.6);
+  const targetV = 1.3 + throttle*3.2;           // gentler top speed for young pilots
+  vel += (targetV - vel)*dt*1.4;
+
+  // steering input
+  let inPitch=0, inYaw=0, inRoll=0;
+  if(useStick && (stickX||stickY)){
+    inPitch = -stickY*1.2;      // push up on stick = climb
+    inYaw   = -stickX*1.0;
+    inRoll  =  stickX*1.4;
+  } else if(useMouse){ inPitch = -mouseY*1.1; inYaw = -mouseX*.9; inRoll = mouseX*1.3; }
+  if(keys['ArrowUp'])    inPitch += 1;
+  if(keys['ArrowDown'])  inPitch -= 1;
+  if(keys['ArrowLeft'])  {inYaw += .8; inRoll -= 1;}
+  if(keys['ArrowRight']) {inYaw -= .8; inRoll += 1;}
+  if(keys['KeyA']) inRoll -= 1.4;
+  if(keys['KeyD']) inRoll += 1.4;
+
+  pitch += inPitch*dt*1.15;
+  pitch = THREE.MathUtils.clamp(pitch, -1.15, 1.15);
+  yaw   += inYaw*dt*1.0;
+  const targetRoll = THREE.MathUtils.clamp(inRoll*.7 + inYaw*.9, -1.2, 1.2);
+  roll += (targetRoll - roll)*dt*4;
+  gLoad = 1 + Math.abs(inPitch)*vel*.45;
+
+  // orientation & movement
+  jet.rotation.set(0,0,0);
+  jet.rotateY(yaw);
+  jet.rotateX(pitch);
+  jet.rotateZ(roll);
+  const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(jet.quaternion);
+  jet.position.addScaledVector(fwd, vel*dt*60);
+
+  // floor / ceiling
+  if(jet.position.y < 20){ jet.position.y = 20; pitch = Math.max(pitch, .05); }
+  if(jet.position.y > 1400) pitch = Math.min(pitch, -.02);
+
+  // afterburner visuals
+  const flame = .6 + throttle*1.6 + Math.random()*.25;
+  exhaustL.scale.set(1,flame,1); exhaustR.scale.set(1,flame,1);
+  exhaustL.material.color.setHSL(.55 - throttle*.5, 1, .6);
+
+  // contrails
+  if(Math.random()<.7){
+    const m = new THREE.Mesh(new THREE.SphereGeometry(.9,5,4),
+      new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.5}));
+    const tail = new THREE.Vector3(0,0,5.5).applyQuaternion(jet.quaternion).add(jet.position);
+    m.position.copy(tail);
+    scene.add(m); contrails.push({mesh:m, life:1});
+  }
+  for(let i=contrails.length-1;i>=0;i--){
+    const c=contrails[i]; c.life -= dt*.7;
+    c.mesh.material.opacity = c.life*.5;
+    c.mesh.scale.setScalar(1 + (1-c.life)*4);
+    if(c.life<=0){ scene.remove(c.mesh); contrails.splice(i,1); }
+  }
+
+  // chase camera
+  const camOff = new THREE.Vector3(0, 4.5, 16).applyQuaternion(jet.quaternion);
+  camera.position.lerp(jet.position.clone().add(camOff), 1-Math.pow(.0001,dt));
+  camera.lookAt(jet.position.clone().addScaledVector(fwd, 30));
+  camera.fov = 70 + throttle*14; camera.updateProjectionMatrix();
+}
+
+// ---------- Ring logic ----------
+function updateRings(dt){
+  const diff = Math.min(10, Math.max(0, level - 2));
+  const hitZone = Math.max(1.1, 1.5 - diff*.06);   // generous early, tighter later
+  const assist  = Math.max(0, 1.1 - diff*.22);      // magnet fades out by mission ~8
+  let next = null;
+  for(const r of rings){
+    if(r.hit) continue;
+    if(!next) next = r;
+    r.mesh.rotation.z += dt*1.2;
+    const d = jet.position.distanceTo(r.mesh.position);
+    if(d < r.r*hitZone){
+      r.hit = true;
+      r.mesh.material.color.set(0x39ff8e);
+      r.mesh.children[0].material.opacity = .4;
+      if(r.beacon) r.beacon.visible = false;
+      const pts = (100 + Math.round(vel*20)) * (r.surprise?2:1);
+      score += pts;
+      flashMsg(r.surprise ? 'BONUS RING! +'+pts
+        : ['SPLASH ONE!','GOOD HIT!','THREADED!','TALK TO ME GOOSE!','RIGHT THROUGH!'][Math.floor(Math.random()*5)]);
+      document.getElementById('hScore').textContent = score;
+      const left = rings.filter(x=>!x.hit).length;
+      document.getElementById('ringsLeft').textContent = left;
+      if(left===0) endMission(true);
+    }
+  }
+  if(next){
+    // make the NEXT ring pulse bright so it's obvious which one to aim for
+    const pulse = .5 + Math.sin(performance.now()*.006)*.5;
+    next.mesh.material.color.setRGB(1, .88+.12*pulse, .3+ .7*pulse);
+    if(next.beacon) next.beacon.material.opacity = .25 + pulse*.25;
+    // magnet assist shrinks as missions get harder
+    if(assist>0){
+      const toRing = next.mesh.position.clone().sub(jet.position);
+      const dist = toRing.length();
+      if(dist < 220){
+        const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(jet.quaternion);
+        if(fwd.dot(toRing.normalize()) > .55){
+          jet.position.lerp(next.mesh.position, dt*assist*(1-dist/220));
+        }
+      }
+    }
+  }
+  // guidance arrow to next ring
+  const arrow = document.getElementById('arrow');
+  if(next){
+    const v = next.mesh.position.clone().project(camera);
+    const onScreen = v.z<1 && Math.abs(v.x)<.95 && Math.abs(v.y)<.9;
+    arrow.style.display = 'block';
+    const dist = Math.round(jet.position.distanceTo(next.mesh.position));
+    if(onScreen){
+      arrow.style.left = ((v.x*.5+.5)*100)+'%';
+      arrow.style.top  = ((-v.y*.5+.5)*100 - 7)+'%';
+      arrow.innerHTML='▼<div style="font-size:13px;color:#fff">'+dist+'m</div>';
+      arrow.style.transform='translateX(-50%)';
+    } else {
+      const ang = Math.atan2(v.y, v.x);
+      arrow.style.left = (50 + Math.cos(ang)*42)+'%';
+      arrow.style.top  = (50 - Math.sin(ang)*40)+'%';
+      arrow.innerHTML='➤';
+      arrow.style.transform = 'translate(-50%,-50%) rotate('+(-ang)+'rad)';
+    }
+  } else arrow.style.display='none';
+}
+
+// ---------- HUD ----------
+function updateHUD(){
+  document.getElementById('hSpd').textContent = Math.round(vel*160);
+  document.getElementById('hThr').textContent = Math.round(throttle*100);
+  document.getElementById('hAlt').textContent = Math.round(jet.position.y*3.28);
+  document.getElementById('hG').textContent = gLoad.toFixed(1);
+  const hdg = ((-yaw*180/Math.PI)%360+360)%360;
+  document.getElementById('hHdg').textContent = String(Math.round(hdg)).padStart(3,'0');
+  const t = document.getElementById('timer');
+  t.textContent = timeLeft.toFixed(1);
+  t.classList.toggle('low', timeLeft<=10);
+}
+function flashMsg(txt){
+  const m = document.getElementById('msg');
+  m.textContent = txt; m.style.opacity = 1; lastMsg = performance.now();
+  setTimeout(()=>{ if(performance.now()-lastMsg>1400) m.style.opacity=0; },1500);
+}
+function showHUD(on){
+  const d = on?'flex':'none', b = on?'block':'none';
+  document.getElementById('hudTop').style.display=d;
+  ['hudLeft','hudRight','crosshair','ctrlHint'].forEach(id=>document.getElementById(id).style.display=b);
+  if(!on) document.getElementById('arrow').style.display='none';
+}
+
+// ---------- Mission flow ----------
+function endMission(won, aborted){
+  playing = false;
+  showHUD(false);
+  const rs = document.getElementById('resultScreen');
+  const hit = rings.filter(r=>r.hit).length;
+  const bonus = won ? Math.round(timeLeft*50) : 0;
+  const total = score + bonus;
+  document.getElementById('resultTitle').textContent =
+    aborted ? 'MISSION ABORTED' : won ? 'MISSION COMPLETE ★' : 'TIME EXPIRED';
+  document.getElementById('resultTitle').style.color = won ? '#39ff8e' : '#ff4655';
+  document.getElementById('resultStats').innerHTML =
+    'RINGS: <b style="color:#fff">'+hit+'/'+rings.length+'</b><br>'+
+    'RING SCORE: <b style="color:#fff">'+score+'</b><br>'+
+    (won?'TIME BONUS: <b style="color:#ffb347">+'+bonus+'</b><br>':'')+
+    'TOTAL: <b style="color:#39ff8e;font-size:22px">'+total+'</b>'+
+    (won&&level===19?'<br><br><span style="color:#ffb347">ALL 20 THEATERS CONQUERED. YOU ARE A TOP GUN — THE BEST OF THE BEST. ✈🏆</span>':'');
+  if(won){
+    unlocked = Math.max(unlocked, level+2);
+    if(!best[level] || total>best[level]) best[level]=total;
+    try{
+      sessionStorage.setItem('dz_unlocked', unlocked);
+      sessionStorage.setItem('dz_best', JSON.stringify(best));
+    }catch(e){}
+  }
+  document.getElementById('btnNext').style.display = (won && level<19) ? 'inline-block':'none';
+  rs.classList.remove('hidden');
+}
+document.getElementById('btnRetry').onclick = ()=>{document.getElementById('resultScreen').classList.add('hidden'); loadMission(level);};
+document.getElementById('btnNext').onclick  = ()=>{document.getElementById('resultScreen').classList.add('hidden'); loadMission(level+1);};
+
+function showMissions(){
+  ['titleScreen','resultScreen'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  const grid = document.getElementById('missionGrid');
+  grid.innerHTML='';
+  SCENARIOS.forEach((s,i)=>{
+    const div = document.createElement('div');
+    const locked = i+1>unlocked;
+    div.className = 'mission'+(locked?' locked':'');
+    div.innerHTML = '<div class="n">'+String(i+1).padStart(2,'0')+'</div><div class="t">'+s.name+'</div><div class="best">'+(best[i]?'BEST '+best[i]:(locked?'🔒':''))+'</div>';
+    if(!locked) div.onclick = ()=>{document.getElementById('missionScreen').classList.add('hidden'); loadMission(i);};
+    grid.appendChild(div);
+  });
+  document.getElementById('missionScreen').classList.remove('hidden');
+}
+function backToTitle(){
+  document.getElementById('missionScreen').classList.add('hidden');
+  document.getElementById('titleScreen').classList.remove('hidden');
+}
+
+// ---------- Main loop ----------
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), .05);
+  if(playing){
+    timeLeft -= dt;
+    if(timeLeft<=0){ timeLeft=0; endMission(false); }
+    updateFlight(dt);
+    updateRings(dt);
+    updateHUD();
+  }
+  if(scene) renderer.render(scene, camera);
+}
+
+initGL();
+// idle background scene behind title
+loadMission(0); playing=false; showHUD(false);
+document.getElementById('titleScreen').classList.remove('hidden');
+animate();
+</script>
+</body>
+</html>

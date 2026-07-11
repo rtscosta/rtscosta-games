@@ -60,6 +60,16 @@
     {
       "@type":"VideoGame",
       "position":1,
+      "name":"Danger Zone — Hypersonic Ring Trials",
+      "url":"https://chatstupidity.com/danger-zone.html",
+      "image":"https://chatstupidity.com/img/danger-zone.png",
+      "description":"Fly through hypersonic rings, dodge obstacles, and survive the Danger Zone.",
+      "gamePlatform":"Web Browser",
+      "applicationCategory":"Game"
+    },  
+    {
+      "@type":"VideoGame",
+      "position":2,
       "name":"Ninja F8",
       "url":"https://chatstupidity.com/ninja_f8.html",
       "image":"https://chatstupidity.com/img/ninja_f8.png",
@@ -69,7 +79,7 @@
     },  
     {
       "@type": "VideoGame",
-      "position": 2,
+      "position": 3,
       "name": "Forsaken Escape 2",
       "url": "https://chatstupidity.com/forsaken-escape.html",
       "image": "https://chatstupidity.com/img/forsaken-escape.png",
@@ -79,7 +89,7 @@
     },
     {
       "@type": "VideoGame",
-      "position": 3,
+      "position": 4,
       "name": "Asteroid Blaster",
       "url": "https://chatstupidity.com/asteroid_blaster.html",
       "image": "https://chatstupidity.com/img/asteroid_blaster.png",
@@ -238,6 +248,7 @@ header{
 .coming{background:var(--cyan)}
 .apple{background:var(--cream)}
 .bad{background:var(--yellow)}
+.danger{background:linear-gradient(135deg,#FF5E3A,#FFB347);}
 
 .badge{
   position:absolute;
@@ -463,6 +474,33 @@ footer{
 </section>
 
 <section class="games" id="games">
+
+
+  <a href="danger-zone.html"
+    class="card large danger"
+    onclick="trackGameClick('Danger Zone — Hypersonic Ring Trials')">
+
+    <div class="badge">PLAY NOW</div>
+
+    <div class="card-content">
+
+      <img class="game-image"
+          src="img/danger-zone.png"
+          alt="Danger Zone">
+
+      <h2>Danger<br>Zone</h2>
+
+      <p>
+        Fly at impossible speed.
+        Thread every ring.
+        One mistake. Boom.
+      </p>
+
+      <div class="play">Launch Game →</div>
+
+    </div>
+
+  </a>
 
   <a href="ninja_f8.html" class="card large ninja" onclick="trackGameClick('Ninja F8')">
     <div class="badge">PLAY NOW</div>
