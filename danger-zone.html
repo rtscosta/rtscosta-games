@@ -44,7 +44,9 @@
   .callsign{margin-top:26px;font-size:13px;color:#8fa;max-width:520px;text-align:center;line-height:1.8;padding:0 20px}
   .btn{pointer-events:auto;margin-top:30px;background:transparent;border:1px solid var(--hud);color:var(--hud);font-family:inherit;font-size:17px;letter-spacing:.3em;padding:14px 46px;cursor:pointer;text-transform:uppercase;transition:.2s}
   .btn:hover{background:var(--hud);color:#00140a;box-shadow:0 0 30px rgba(57,255,142,.7)}
-  #missionGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:34px;max-width:760px;padding:0 16px}
+  #missionGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:34px;max-width:760px;padding:0 16px;pointer-events:auto}
+  #missionScreen{justify-content:flex-start;overflow-y:auto;padding:44px 0 70px;-webkit-overflow-scrolling:touch}
+  #missionScreen .stencil{flex-shrink:0}
   .mission{border:1px solid var(--hud-dim);padding:12px 10px;cursor:pointer;text-align:center;transition:.15s;background:rgba(0,20,10,.5)}
   .mission:hover{border-color:#fff;background:rgba(57,255,142,.12)}
   .mission.locked{opacity:.32;cursor:not-allowed}
@@ -97,6 +99,7 @@
 <button class="thrBtn" id="thrUp">THR +</button>
 <button class="thrBtn" id="thrDn">THR −</button>
 <button class="thrBtn" id="abortBtn" style="top:14px;right:14px;bottom:auto;width:44px;height:44px;font-size:16px;color:var(--red);border-color:rgba(255,70,85,.5)">✕</button>
+<button id="musicBtn" style="position:fixed;top:14px;left:14px;z-index:30;width:auto;height:auto;padding:8px 14px;background:rgba(4,12,8,.72);border:1px solid var(--hud-dim);color:var(--hud);font-family:inherit;font-size:13px;letter-spacing:.1em;cursor:pointer">♪ MUSIC ON</button>
 
 <!-- TITLE -->
 <div class="screen" id="titleScreen">
@@ -169,6 +172,96 @@ let clock, lastMsg=0;
 try{ unlocked = Math.max(1, parseInt(sessionStorage.getItem('dz_unlocked')||'1')); }catch(e){}
 let best = {};
 try{ best = JSON.parse(sessionStorage.getItem('dz_best')||'{}'); }catch(e){}
+
+// ---------- Music: "AFTERBURNER ANTHEM" ----------
+// Original 80s-style synthwave written for this game — driving bass, big drums,
+// soaring lead. Pure Web Audio, no files needed.
+const music = (function(){
+  let ctx=null, master=null, on=true, seqTimer=null, step=0;
+  const BPM=138, STEP=60/BPM/2;   // 8th notes
+  const E2=82.41, st=s=>E2*Math.pow(2,s/12);
+  // 2-bar driving bass riff (E minor)
+  const bassSeq=[0,0,7,0, 0,0,10,7, 0,0,7,0, 12,10,7,3];
+  // anthem lead, plays every other 2 bars
+  const leadSeq=[12,null,15,null, 19,null,17,15, 12,null,15,17, 19,null,22,24];
+  // pad chords per bar (semitone stacks)
+  const pads=[[0,7,12],[-2,8,15],[0,7,12],[3,10,19]];
+
+  function ensure(){
+    if(!ctx){
+      ctx = new (window.AudioContext||window.webkitAudioContext)();
+      master = ctx.createGain(); master.gain.value=.45;
+      const comp = ctx.createDynamicsCompressor();
+      master.connect(comp); comp.connect(ctx.destination);
+    }
+    if(ctx.state==='suspended') ctx.resume();
+  }
+  function tone(type,freq,t,dur,vol){
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,t);
+    g.gain.exponentialRampToValueAtTime(.001,t+dur);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t+dur+.05);
+  }
+  function noise(t,dur,vol,hp){
+    const b=ctx.createBuffer(1,Math.max(1,ctx.sampleRate*dur),ctx.sampleRate);
+    const d=b.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    const src=ctx.createBufferSource(); src.buffer=b;
+    const f=ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=hp;
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(vol,t);
+    g.gain.exponentialRampToValueAtTime(.001,t+dur);
+    src.connect(f); f.connect(g); g.connect(master); src.start(t);
+  }
+  function kick(t){
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.frequency.setValueAtTime(130,t);
+    o.frequency.exponentialRampToValueAtTime(42,t+.12);
+    g.gain.setValueAtTime(.85,t);
+    g.gain.exponentialRampToValueAtTime(.001,t+.16);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+.2);
+  }
+  function schedule(){
+    const t=ctx.currentTime+.04, i=step%16, bar=Math.floor(step/16);
+    // bass: saw + sub square, relentless 8ths
+    tone('sawtooth', st(bassSeq[i]),   t, STEP*.9, .16);
+    tone('square',   st(bassSeq[i])/2, t, STEP*.9, .10);
+    // drums
+    if(i%4===0) kick(t);
+    if(i%8===4) noise(t,.12,.32,1800);   // snare
+    noise(t,.03,.10,8000);               // hats
+    if(i===14) noise(t,.05,.16,8000);    // little push before the bar turns
+    // pad stab at bar start
+    if(i===0) pads[bar%4].forEach(n=>tone('triangle', st(n)*2, t, STEP*6, .05));
+    // soaring lead every other 2-bar phrase
+    if(bar%4>=2){
+      const n=leadSeq[i];
+      if(n!==null){
+        tone('square',   st(n)*2,       t, STEP*1.7, .085);
+        tone('sawtooth', st(n)*2*1.004, t, STEP*1.7, .055); // slight detune = fat 80s lead
+      }
+    }
+    step++;
+  }
+  function start(){
+    if(!on) return;
+    ensure(); stop(); step=0;
+    seqTimer=setInterval(schedule, STEP*1000);
+  }
+  function stop(){ if(seqTimer){clearInterval(seqTimer); seqTimer=null;} }
+  function toggle(){
+    on=!on;
+    if(!on) stop(); else if(playing) start();
+    return on;
+  }
+  return {start, stop, toggle, isOn:()=>on};
+})();
+document.getElementById('musicBtn').addEventListener('click',()=>{
+  const on = music.toggle();
+  document.getElementById('musicBtn').textContent = on ? '♪ MUSIC ON' : '♪ MUSIC OFF';
+});
 
 // ---------- Renderer / Scene ----------
 function initGL(){
@@ -398,6 +491,124 @@ function buildDeco(s){
       rock.position.set(rand(-R,R),rand(4,12),rand(-R,R)); add(rock);
     }
   }
+  if(s.deco==='sunset'){
+    for(let i=0;i<35;i++){
+      const isl = new THREE.Mesh(new THREE.ConeGeometry(rand(50,160),rand(40,140),7), lambert(0x2a4a3a));
+      isl.position.set(rand(-R,R),0,rand(-R,R)); add(isl);
+    }
+    const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(240,32), new THREE.MeshBasicMaterial({color:0xffd27a}));
+    sunDisc.position.set(0,200,-2700); add(sunDisc);
+    for(let i=0;i<20;i++){
+      const cl = new THREE.Mesh(new THREE.SphereGeometry(rand(50,120),8,6),
+        new THREE.MeshBasicMaterial({color:0xffb070, transparent:true, opacity:.5}));
+      cl.position.set(rand(-R,R),rand(300,700),rand(-R,R)); cl.scale.y=.35; add(cl);
+    }
+  }
+  if(s.deco==='sandstorm'){
+    for(let i=0;i<90;i++){
+      const h = rand(60,180);
+      const mesa = new THREE.Mesh(new THREE.CylinderGeometry(rand(40,110),rand(60,140),h,7), lambert(0xa5763c));
+      mesa.position.set(rand(-R,R),h/2,rand(-R,R)); add(mesa);
+    }
+    for(let i=0;i<50;i++){
+      const dust = new THREE.Mesh(new THREE.SphereGeometry(rand(60,150),7,5),
+        new THREE.MeshLambertMaterial({color:0xd4ae6e, transparent:true, opacity:.4}));
+      dust.position.set(rand(-R,R),rand(30,260),rand(-R,R)); dust.scale.y=.4; add(dust);
+    }
+  }
+  if(s.deco==='atoll'){
+    for(let i=0;i<45;i++){
+      const rr = rand(60,150);
+      const reef = new THREE.Mesh(new THREE.TorusGeometry(rr,rand(14,30),8,20), lambert(0xe8d8a8));
+      reef.rotation.x=-Math.PI/2; reef.position.set(rand(-R,R),2,rand(-R,R)); add(reef);
+      const lagoon = new THREE.Mesh(new THREE.CircleGeometry(rr-10,20), new THREE.MeshBasicMaterial({color:0x5ee6d0}));
+      lagoon.rotation.x=-Math.PI/2; lagoon.position.set(reef.position.x,2.5,reef.position.z); add(lagoon);
+    }
+  }
+  if(s.deco==='ruins'){
+    for(let i=0;i<55;i++){
+      const g2 = new THREE.Group();
+      const steps = Math.floor(rand(3,6));
+      for(let j=0;j<steps;j++){
+        const size = rand(70,110) - j*16;
+        const blk = new THREE.Mesh(new THREE.BoxGeometry(size,20,size), lambert(j%2?0x9a8858:0x8a7848));
+        blk.position.y = 10+j*20; g2.add(blk);
+      }
+      g2.position.set(rand(-R,R),0,rand(-R,R)); add(g2);
+    }
+    for(let i=0;i<40;i++){
+      const ch = rand(40,90);
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(6,7,ch,8), lambert(0xb0a070));
+      col.position.set(rand(-R,R),ch/2,rand(-R,R)); add(col);
+    }
+  }
+  if(s.deco==='blizzard'){
+    for(let i=0;i<80;i++){
+      const m = new THREE.Mesh(new THREE.ConeGeometry(rand(30,100),rand(40,180),6), lambert(0xffffff));
+      m.position.set(rand(-R,R),0,rand(-R,R)); add(m);
+    }
+    const snowGeo=new THREE.BufferGeometry(); const pos=[];
+    for(let i=0;i<3000;i++){pos.push(rand(-R,R),rand(0,900),rand(-R,R));}
+    snowGeo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    add(new THREE.Points(snowGeo,new THREE.PointsMaterial({color:0xffffff,size:4,transparent:true,opacity:.8})));
+  }
+  if(s.deco==='windfarm'){
+    for(let i=0;i<55;i++){
+      const t = new THREE.Group();
+      const ph = rand(120,200);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(3,5,ph,8), lambert(0xf0f2f4));
+      pole.position.y = ph/2; t.add(pole);
+      const hub = new THREE.Group();
+      for(let b=0;b<3;b++){
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(4,70,1.5), lambert(0xffffff));
+        blade.position.y=35;
+        const arm = new THREE.Group(); arm.add(blade);
+        arm.rotation.z = b*Math.PI*2/3; hub.add(arm);
+      }
+      hub.position.y = ph; hub.rotation.y = Math.random()*7; hub.userData.spin = rand(.6,1.6);
+      t.add(hub);
+      t.position.set(rand(-R,R),0,rand(-R,R)); add(t);
+    }
+    for(let i=0;i<40;i++){
+      const hill = new THREE.Mesh(new THREE.SphereGeometry(rand(60,160),8,6), lambert(0x568a42));
+      hill.position.set(rand(-R,R),-rand(20,60),rand(-R,R)); hill.scale.y=.5; add(hill);
+    }
+  }
+  if(s.deco==='asteroid'){
+    const starGeo=new THREE.BufferGeometry(); const pos=[];
+    for(let i=0;i<2600;i++){const v=new THREE.Vector3().setFromSphericalCoords(2900,Math.random()*Math.PI,Math.random()*Math.PI*2);pos.push(v.x,v.y+300,v.z);}
+    starGeo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:2.2})));
+    for(let i=0;i<80;i++){
+      const a = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(15,70),0), lambert([0x555b66,0x3e434c,0x6a7078][i%3]));
+      a.position.set(rand(-R,R),rand(60,700),rand(-R,R));
+      a.rotation.set(Math.random()*7,Math.random()*7,Math.random()*7);
+      a.userData.tumble = rand(.1,.5); add(a);
+    }
+    const planet = new THREE.Mesh(new THREE.SphereGeometry(300,24,18), lambert(0x6a4a8a));
+    planet.position.set(-1400,700,-1800); add(planet);
+  }
+  if(s.deco==='finale'){
+    for(let k=0;k<3;k++){
+      const c = new THREE.Group();
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(70,18,330), lambert(0x555f66));
+      deck.position.y=9; c.add(deck);
+      const isl = new THREE.Mesh(new THREE.BoxGeometry(16,42,40), lambert(0x6b757c));
+      isl.position.set(22,39,20); c.add(isl);
+      c.position.set(k*400-400, 0, -600-k*200); add(c);
+    }
+    const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(260,32), new THREE.MeshBasicMaterial({color:0xffe8a0}));
+    sunDisc.position.set(0,220,-2700); add(sunDisc);
+    for(let i=0;i<60;i++){
+      const bal = new THREE.Mesh(new THREE.SphereGeometry(rand(8,16),8,6),
+        new THREE.MeshBasicMaterial({color:[0xff4655,0x39ff8e,0xffe14d,0x66d9ff][i%4]}));
+      bal.position.set(rand(-R,R),rand(80,500),rand(-R,R)); add(bal);
+    }
+    for(let i=0;i<25;i++){
+      const s2 = new THREE.Mesh(new THREE.BoxGeometry(14,10,rand(50,90)), lambert(0x616b72));
+      s2.position.set(rand(-R,R),5,rand(-R,R)); add(s2);
+    }
+  }
   return grp;
 }
 
@@ -493,7 +704,9 @@ function loadMission(idx){
   scene.add(jet);
 
   // reset flight state
-  vel=3.2; throttle=.65; pitch=0; yaw=Math.PI; roll=0; score=0; timeLeft=60; gLoad=1;
+  vel=3.2; throttle=.65; pitch=0; yaw=Math.PI; roll=0; score=0; gLoad=1;
+  // Missions 1-8: 60s. From mission 9 on, +10s per mission, capped at 120s.
+  timeLeft = Math.min(120, 60 + Math.max(0, idx - 7) * 10);
   jet.rotation.set(0, Math.PI, 0);
   contrails.forEach(c=>scene.remove(c.mesh)); contrails=[];
 
@@ -503,6 +716,7 @@ function loadMission(idx){
   showHUD(true);
   flashMsg(s.name + ' — GO GO GO!');
   playing = true;
+  music.start();
 }
 
 // ---------- Input ----------
@@ -731,6 +945,7 @@ function showHUD(on){
 // ---------- Mission flow ----------
 function endMission(won, aborted){
   playing = false;
+  music.stop();
   showHUD(false);
   const rs = document.getElementById('resultScreen');
   const hit = rings.filter(r=>r.hit).length;
@@ -782,6 +997,11 @@ function backToTitle(){
 function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), .05);
+  // ambient scenery motion (wind turbines, asteroids)
+  if(decoGroup) decoGroup.traverse(o=>{
+    if(o.userData.spin) o.rotation.z += dt*o.userData.spin;
+    if(o.userData.tumble){ o.rotation.x += dt*o.userData.tumble; o.rotation.y += dt*o.userData.tumble*.6; }
+  });
   if(playing){
     timeLeft -= dt;
     if(timeLeft<=0){ timeLeft=0; endMission(false); }
