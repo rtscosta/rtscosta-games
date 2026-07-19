@@ -57,9 +57,20 @@
   "@type": "ItemList",
   "name": "ChatStupidity Games",
   "itemListElement": [
+,
     {
       "@type":"VideoGame",
       "position":1,
+      "name":"Lava Parkour",
+      "url":"https://chatstupidity.com/lava_parkour.html",
+      "image":"https://chatstupidity.com/img/lava_parkour.png",
+      "description":"Jump across deadly platforms, avoid the lava, and survive the ultimate parkour challenge.",
+      "gamePlatform":"Web Browser",
+      "applicationCategory":"Game"
+    },  
+    {
+      "@type":"VideoGame",
+      "position":2,
       "name":"Danger Zone — Hypersonic Ring Trials",
       "url":"https://chatstupidity.com/danger-zone.html",
       "image":"https://chatstupidity.com/img/danger-zone.png",
@@ -69,7 +80,7 @@
     },  
     {
       "@type":"VideoGame",
-      "position":2,
+      "position":3,
       "name":"Ninja F8",
       "url":"https://chatstupidity.com/ninja_f8.html",
       "image":"https://chatstupidity.com/img/ninja_f8.png",
@@ -79,7 +90,7 @@
     },  
     {
       "@type": "VideoGame",
-      "position": 3,
+      "position": 4,
       "name": "Forsaken Escape 2",
       "url": "https://chatstupidity.com/forsaken-escape.html",
       "image": "https://chatstupidity.com/img/forsaken-escape.png",
@@ -89,7 +100,7 @@
     },
     {
       "@type": "VideoGame",
-      "position": 4,
+      "position": 5,
       "name": "Asteroid Blaster",
       "url": "https://chatstupidity.com/asteroid_blaster.html",
       "image": "https://chatstupidity.com/img/asteroid_blaster.png",
@@ -249,6 +260,7 @@ header{
 .apple{background:var(--cream)}
 .bad{background:var(--yellow)}
 .danger{background:linear-gradient(135deg,#FF5E3A,#FFB347);}
+.lava{ background:linear-gradient(135deg,#FF7A2F,#F5D329);}
 
 .badge{
   position:absolute;
@@ -475,6 +487,33 @@ footer{
 
 <section class="games" id="games">
 
+  <a href="lava_parkour.html"
+    class="card large lava"
+    onclick="trackGameClick('Lava Parkour')">
+
+      <div class="badge">PLAY NOW</div>
+
+      <div class="card-content">
+
+          <img
+              class="game-image"
+              src="img/lava_parkour.png"
+              alt="Lava Parkour">
+
+          <h2>Lava<br>Parkour</h2>
+
+          <p>
+              Jump fast. Don't fall.
+              The floor really is lava.
+          </p>
+
+          <div class="play">
+              Launch Game →
+          </div>
+
+      </div>
+
+  </a>  
 
   <a href="danger-zone.html"
     class="card large danger"
