@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Smile Rush</title>
 <style>
 /* ============================================================
@@ -82,17 +82,29 @@ canvas { display: block; }
 }
 
 /* ===== Mobile controls ===== */
+/* Hidden by default; shown when the device has a touch screen.
+   Three independent triggers so it can never fail silently:
+   1. CSS media query (pointer: coarse / hover: none)
+   2. JS feature detection adds body.isTouch
+   3. Any real touch event also adds body.isTouch */
 .mobileOnly { display: none; }
-body.isTouch .mobileOnly { display: block; }
+body.isTouch #joyZone, body.isTouch #joyBase { display: block; }
+body.isTouch #punchBtn, body.isTouch #sprintBtn { display: flex; }
+@media (pointer: coarse), (hover: none) {
+  #joyZone, #joyBase { display: block; }
+  #punchBtn, #sprintBtn { display: flex; }
+}
 body.isTouch #hint { bottom: unset; top: 60px; }
+@media (pointer: coarse), (hover: none) { #hint { bottom: unset; top: 60px; } }
 
 #joyZone {
-  position: fixed; left: 0; bottom: 0; width: 45%; height: 55%; z-index: 20;
+  position: fixed; left: 0; bottom: 0; width: 45%; height: 55%; z-index: 40;
 }
 #joyBase {
   position: fixed; width: 110px; height: 110px; border-radius: 50%;
   background: rgba(255,255,255,.18); border: 3px solid rgba(255,255,255,.55);
-  left: 40px; bottom: 60px; z-index: 21; pointer-events: none; opacity: .85;
+  left: 24px; bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  z-index: 41; pointer-events: none; opacity: .85;
 }
 #joyKnob {
   position: absolute; width: 48px; height: 48px; border-radius: 50%;
@@ -100,25 +112,53 @@ body.isTouch #hint { bottom: unset; top: 60px; }
   box-shadow: 0 3px 8px rgba(0,0,0,.3);
 }
 .actionBtn {
-  position: fixed; z-index: 22; border-radius: 50%;
+  position: fixed; z-index: 42; border-radius: 50%;
   border: 3px solid rgba(255,255,255,.7);
   color: #fff; font-weight: 900; font-family: inherit;
   text-shadow: 0 2px 2px rgba(0,0,0,.4);
-  display: flex; align-items: center; justify-content: center;
-  -webkit-user-select: none; user-select: none;
+  align-items: center; justify-content: center;
+  -webkit-user-select: none; user-select: none; touch-action: none;
 }
 .actionBtn:active, .actionBtn.pressed { transform: scale(.92); filter: brightness(1.2); }
 #punchBtn {
-  right: 28px; bottom: 60px; width: 92px; height: 92px; font-size: 17px;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  width: 86px; height: 86px; font-size: 16px;
   background: rgba(255,90,70,.6);
 }
 #sprintBtn {
-  right: 132px; bottom: 140px; width: 70px; height: 70px; font-size: 13px;
+  right: calc(112px + env(safe-area-inset-right, 0px));
+  bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+  width: 66px; height: 66px; font-size: 13px;
   background: rgba(90,180,255,.55);
+}
+/* Narrow portrait screens: pull everything a bit tighter so nothing overflows */
+@media (max-width: 420px) {
+  #hud h1 { font-size: 20px; }
+  #hud .line { font-size: 12px; padding: 2px 8px; }
+  #staminaWrap { width: 40vw; top: 10px; }
+  #punchBtn { width: 76px; height: 76px; font-size: 14px; }
+  #sprintBtn { width: 60px; height: 60px; font-size: 12px;
+    right: calc(102px + env(safe-area-inset-right, 0px));
+    bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
+  #joyBase { width: 100px; height: 100px; }
 }
 </style>
 </head>
 <body>
+
+<script>
+/* Early touch detection — runs before anything else so the mobile controls
+   always appear, even if the 3D library is still loading. */
+(function () {
+  var touch = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0) ||
+              (window.matchMedia && matchMedia("(pointer: coarse)").matches);
+  if (touch) document.body.classList.add("isTouch");
+  window.addEventListener("touchstart", function () {
+    document.body.classList.add("isTouch");
+  }, { once: true, passive: true });
+})();
+</script>
 
 <!-- ============ HUD ============ -->
 <div id="hud">
@@ -1214,7 +1254,7 @@ function endTouch(e) {
     var t = e.changedTouches[i];
     if (t.identifier === Input.joy.id) {
       Input.joy.id = null; Input.joy.active = false; Input.joy.x = Input.joy.y = 0;
-      joyBase.style.left = "40px"; joyBase.style.top = "auto"; joyBase.style.bottom = "60px";
+      joyBase.style.left = ""; joyBase.style.top = ""; joyBase.style.bottom = "";
       setJoyVisual(0, 0);
     }
     if (t.identifier === Input.camTouchId) Input.camTouchId = null;
