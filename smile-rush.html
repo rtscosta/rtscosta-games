@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Smile Rush</title>
+<style>
+/* ============================================================
+   SMILE RUSH — UI STYLES
+   ============================================================ */
+html, body {
+  margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%;
+  background: #87CEEB; touch-action: none; overscroll-behavior: none;
+  font-family: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+  -webkit-user-select: none; user-select: none;
+}
+canvas { display: block; }
+
+#hud {
+  position: fixed; top: 12px; left: 12px; z-index: 10; pointer-events: none;
+  color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.35);
+}
+#hud h1 {
+  margin: 0 0 4px 0; font-size: 26px; letter-spacing: 1px;
+  color: #ffe14d; -webkit-text-stroke: 1.5px #3a2a00;
+  text-shadow: 0 3px 0 rgba(0,0,0,.3);
+}
+#hud .line { font-size: 15px; font-weight: bold; margin-top: 2px;
+  background: rgba(0,0,0,.35); padding: 3px 10px; border-radius: 10px; display: inline-block; }
+#hud .line + .line { margin-left: 0; }
+#weaponLine.saber { color: #6ef3ff; }
+
+#staminaWrap {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+  width: min(280px, 44vw); z-index: 10; pointer-events: none;
+}
+#staminaWrap .label {
+  text-align: center; color: #fff; font-size: 11px; font-weight: bold;
+  letter-spacing: 2px; text-shadow: 0 2px 2px rgba(0,0,0,.5); margin-bottom: 3px;
+}
+#staminaBarBg {
+  height: 14px; background: rgba(0,0,0,.45); border-radius: 8px;
+  border: 2px solid rgba(255,255,255,.7); overflow: hidden;
+}
+#staminaBar {
+  height: 100%; width: 100%; border-radius: 6px;
+  background: linear-gradient(180deg, #9dff57, #4ec926);
+  transition: width .08s linear;
+}
+#staminaBar.low { background: linear-gradient(180deg, #ff9d57, #e04a2a); }
+
+/* Lightsaber notification */
+#saberNotify {
+  position: fixed; top: 34%; left: 50%; transform: translate(-50%,-50%) scale(0);
+  z-index: 30; pointer-events: none; text-align: center;
+}
+#saberNotify .big {
+  font-size: clamp(30px, 7vw, 62px); font-weight: 900; letter-spacing: 2px;
+  color: #6ef3ff; -webkit-text-stroke: 2px #063b4d;
+  text-shadow: 0 0 18px #2fd8ff, 0 0 50px #2fd8ff, 0 6px 0 rgba(0,0,0,.35);
+}
+#saberNotify .small {
+  font-size: clamp(14px, 3vw, 22px); font-weight: bold; color: #fff;
+  text-shadow: 0 0 10px #2fd8ff, 0 2px 0 rgba(0,0,0,.4); margin-top: 6px;
+}
+#saberNotify.show { animation: notifyPop 3.2s ease forwards; }
+@keyframes notifyPop {
+  0%   { transform: translate(-50%,-50%) scale(0) rotate(-8deg); opacity: 0; }
+  10%  { transform: translate(-50%,-50%) scale(1.15) rotate(2deg); opacity: 1; }
+  16%  { transform: translate(-50%,-50%) scale(1) rotate(0deg); }
+  80%  { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(1.3); opacity: 0; }
+}
+
+/* Hint text */
+#hint {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  color: #fff; font-size: 13px; font-weight: bold; z-index: 10;
+  background: rgba(0,0,0,.35); padding: 5px 14px; border-radius: 12px;
+  text-shadow: 0 1px 2px rgba(0,0,0,.6); pointer-events: none;
+  transition: opacity 1s; white-space: nowrap;
+}
+
+/* ===== Mobile controls ===== */
+.mobileOnly { display: none; }
+body.isTouch .mobileOnly { display: block; }
+body.isTouch #hint { bottom: unset; top: 60px; }
+
+#joyZone {
+  position: fixed; left: 0; bottom: 0; width: 45%; height: 55%; z-index: 20;
+}
+#joyBase {
+  position: fixed; width: 110px; height: 110px; border-radius: 50%;
+  background: rgba(255,255,255,.18); border: 3px solid rgba(255,255,255,.55);
+  left: 40px; bottom: 60px; z-index: 21; pointer-events: none; opacity: .85;
+}
+#joyKnob {
+  position: absolute; width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(255,255,255,.75); left: 28px; top: 28px;
+  box-shadow: 0 3px 8px rgba(0,0,0,.3);
+}
+.actionBtn {
+  position: fixed; z-index: 22; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.7);
+  color: #fff; font-weight: 900; font-family: inherit;
+  text-shadow: 0 2px 2px rgba(0,0,0,.4);
+  display: flex; align-items: center; justify-content: center;
+  -webkit-user-select: none; user-select: none;
+}
+.actionBtn:active, .actionBtn.pressed { transform: scale(.92); filter: brightness(1.2); }
+#punchBtn {
+  right: 28px; bottom: 60px; width: 92px; height: 92px; font-size: 17px;
+  background: rgba(255,90,70,.6);
+}
+#sprintBtn {
+  right: 132px; bottom: 140px; width: 70px; height: 70px; font-size: 13px;
+  background: rgba(90,180,255,.55);
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HUD ============ -->
+<div id="hud">
+  <h1>SMILE RUSH</h1>
+  <div class="line" id="weaponLine">Weapon: Fists</div><br>
+  <div class="line" id="npcLine">Smilers: 15</div>
+</div>
+
+<div id="staminaWrap">
+  <div class="label">STAMINA</div>
+  <div id="staminaBarBg"><div id="staminaBar"></div></div>
+</div>
+
+<div id="saberNotify">
+  <div class="big">LIGHTSABER UNLOCKED!</div>
+  <div class="small">Press Q to swing &mdash; send them flying!</div>
+</div>
+
+<div id="hint">WASD move &bull; Shift sprint &bull; Q punch &bull; Drag mouse to look &bull; Something is hidden in the base...</div>
+
+<!-- ============ MOBILE CONTROLS ============ -->
+<div id="joyZone" class="mobileOnly"></div>
+<div id="joyBase" class="mobileOnly"><div id="joyKnob"></div></div>
+<div id="punchBtn" class="actionBtn mobileOnly">PUNCH</div>
+<div id="sprintBtn" class="actionBtn mobileOnly">RUN</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   SMILE RUSH
+   A silly blocky brawler. One file. Zero mercy for smilers.
+   Sections:
+     1. CONFIG & STATE        5. PLAYER
+     2. AUDIO (procedural)    6. NPCS & AI
+     3. WORLD BUILDING        7. COMBAT & RAGDOLLS
+     4. CHARACTER FACTORY     8. CAMERA / INPUT / UI / LOOP
+   ============================================================ */
+(function () {
+"use strict";
+
+/* ============================================================
+   1. CONFIG & STATE
+   ============================================================ */
+var CFG = {
+  mapHalf: 95,            // playable half-size of the map
+  walkSpeed: 7.5,
+  sprintSpeed: 12.5,
+  accel: 34,
+  decel: 26,
+  npcSpeed: 5.6,
+  npcStart: 15,
+  npcMax: 100,
+  npcSpawnEvery: 10,      // seconds
+  punchRange: 2.9,
+  saberRange: 4.6,
+  punchKnock: 11,
+  saberKnock: 30,
+  ragdollTime: 2.0,
+  staminaDrain: 26,
+  staminaRegen: 16,
+  camDist: 8.5,
+  camHeight: 3.2
+};
+
+var state = {
+  hasSaber: false,
+  stamina: 100,
+  npcCount: 0,
+  time: 0,
+  spawnTimer: 0
+};
+
+var clock = new THREE.Clock();
+
+/* ============================================================
+   2. AUDIO — everything generated with WebAudio, no files
+   ============================================================ */
+var AudioSys = (function () {
+  var ctx = null, master = null, started = false;
+  var windGain = null, humOsc = null, humGain = null;
+  var stepTimer = 0, ambTimer = 3;
+
+  function ensure() {
+    if (!ctx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = 0.5;
+      master.connect(ctx.destination);
+      startWind();
+    }
+    if (ctx.state === "suspended") ctx.resume();
+    started = true;
+    return true;
+  }
+
+  function noiseBuffer(seconds) {
+    var len = Math.max(1, (seconds * ctx.sampleRate) | 0);
+    var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  // Constant soft wind + it doubles as distant base ambience
+  function startWind() {
+    var src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(2);
+    src.loop = true;
+    var f = ctx.createBiquadFilter();
+    f.type = "lowpass"; f.frequency.value = 340; f.Q.value = 0.4;
+    windGain = ctx.createGain();
+    windGain.gain.value = 0.045;
+    src.connect(f); f.connect(windGain); windGain.connect(master);
+    src.start();
+    // slow wind swells
+    var lfo = ctx.createOscillator(), lfoG = ctx.createGain();
+    lfo.frequency.value = 0.07; lfoG.gain.value = 0.02;
+    lfo.connect(lfoG); lfoG.connect(windGain.gain); lfo.start();
+  }
+
+  function blip(freq, dur, type, vol) {
+    if (!started) return;
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || "square"; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    o.connect(g); g.connect(master);
+    o.start(); o.stop(ctx.currentTime + dur);
+  }
+
+  function thump(vol, pitch) {
+    if (!started) return;
+    var t = ctx.currentTime;
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(pitch || 160, t);
+    o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    g.gain.setValueAtTime(vol || 0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    o.connect(g); g.connect(master); o.start(); o.stop(t + 0.2);
+    // slap of noise
+    var s = ctx.createBufferSource(); s.buffer = noiseBuffer(0.08);
+    var f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1400;
+    var ng = ctx.createGain();
+    ng.gain.setValueAtTime((vol || 0.5) * 0.6, t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    s.connect(f); f.connect(ng); ng.connect(master); s.start();
+  }
+
+  function swoosh(hi, lo, dur, vol) {
+    if (!started) return;
+    var t = ctx.currentTime;
+    var s = ctx.createBufferSource(); s.buffer = noiseBuffer(dur);
+    var f = ctx.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 1.4;
+    f.frequency.setValueAtTime(hi, t);
+    f.frequency.exponentialRampToValueAtTime(lo, t + dur);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    s.connect(f); f.connect(g); g.connect(master); s.start();
+  }
+
+  return {
+    unlock: ensure,
+    punch: function () { if (!started) return; swoosh(2200, 500, 0.14, 0.25); thump(0.45, 150); },
+    punchMiss: function () { if (!started) return; swoosh(1800, 600, 0.13, 0.18); },
+    saberSwing: function () {
+      if (!started) return;
+      swoosh(300, 1600, 0.22, 0.3);
+      blip(90, 0.22, "sawtooth", 0.08);
+    },
+    saberHit: function () {
+      if (!started) return;
+      thump(0.6, 220);
+      blip(880, 0.25, "sawtooth", 0.14);
+      blip(1320, 0.18, "square", 0.08);
+      swoosh(3000, 300, 0.3, 0.2);
+    },
+    pickup: function () {
+      if (!started) return;
+      blip(523, 0.12, "square", 0.14);
+      setTimeout(function () { blip(659, 0.12, "square", 0.14); }, 110);
+      setTimeout(function () { blip(784, 0.14, "square", 0.14); }, 220);
+      setTimeout(function () { blip(1047, 0.4, "square", 0.16); }, 330);
+    },
+    ui: function () { blip(700, 0.06, "square", 0.08); },
+    saberOn: function (on) {
+      if (!started) return;
+      if (on && !humOsc) {
+        humOsc = ctx.createOscillator(); humGain = ctx.createGain();
+        humOsc.type = "sawtooth"; humOsc.frequency.value = 82;
+        var f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 240;
+        humGain.gain.value = 0.035;
+        humOsc.connect(f); f.connect(humGain); humGain.connect(master);
+        humOsc.start();
+        var lfo = ctx.createOscillator(), lg = ctx.createGain();
+        lfo.frequency.value = 5.5; lg.gain.value = 5;
+        lfo.connect(lg); lg.connect(humOsc.frequency); lfo.start();
+      }
+    },
+    // called every frame: footsteps + distant military ambience
+    update: function (dt, moving, sprinting) {
+      if (!started) return;
+      stepTimer -= dt;
+      if (moving && stepTimer <= 0) {
+        thump(sprinting ? 0.14 : 0.09, sprinting ? 130 : 105);
+        stepTimer = sprinting ? 0.26 : 0.38;
+      }
+      ambTimer -= dt;
+      if (ambTimer <= 0) {
+        // random distant base noises: radio blips, far thuds, truck rumbles
+        var r = Math.random();
+        if (r < 0.4) thump(0.06, 60 + Math.random() * 40);
+        else if (r < 0.7) blip(300 + Math.random() * 500, 0.08, "square", 0.02);
+        else swoosh(500, 150, 1.2, 0.02);
+        ambTimer = 4 + Math.random() * 7;
+      }
+    }
+  };
+})();
+
+// Unlock audio on first interaction (browser autoplay policy)
+["pointerdown", "keydown", "touchstart"].forEach(function (ev) {
+  window.addEventListener(ev, function once() { AudioSys.unlock(); }, { passive: true });
+});
+
+/* ============================================================
+   3. WORLD BUILDING — the army base
+   ============================================================ */
+var scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8ecdf0);
+scene.fog = new THREE.Fog(0x9ed4f2, 60, 210);
+
+var renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+var camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
+
+// --- Lighting: soft daytime ---
+scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x7aa05a, 0.85));
+var sun = new THREE.DirectionalLight(0xfff2d8, 0.95);
+sun.position.set(60, 90, 40);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -70; sun.shadow.camera.right = 70;
+sun.shadow.camera.top = 70; sun.shadow.camera.bottom = -70;
+sun.shadow.camera.far = 260;
+sun.shadow.bias = -0.0008;
+scene.add(sun);
+scene.add(sun.target);
+
+// Obstacles for collision + AI avoidance: {x, z, hw, hd, h}
+var obstacles = [];
+function addObstacle(x, z, hw, hd, h) { obstacles.push({ x: x, z: z, hw: hw, hd: hd, h: h || 5 }); }
+
+// --- Shared materials (kept few for performance) ---
+var MAT = {
+  grass:    new THREE.MeshLambertMaterial({ color: 0x6aa84f }),
+  road:     new THREE.MeshLambertMaterial({ color: 0x555a5f }),
+  roadLine: new THREE.MeshLambertMaterial({ color: 0xdddccc }),
+  sidewalk: new THREE.MeshLambertMaterial({ color: 0x9aa0a6 }),
+  wallGreen:new THREE.MeshLambertMaterial({ color: 0x77804f }),
+  wallTan:  new THREE.MeshLambertMaterial({ color: 0xb3a179 }),
+  wallGrey: new THREE.MeshLambertMaterial({ color: 0x8d9499 }),
+  roof:     new THREE.MeshLambertMaterial({ color: 0x4e5340 }),
+  roofRed:  new THREE.MeshLambertMaterial({ color: 0x8a4a3a }),
+  door:     new THREE.MeshLambertMaterial({ color: 0x3c4043 }),
+  window:   new THREE.MeshLambertMaterial({ color: 0xbfe3ec }),
+  crate:    new THREE.MeshLambertMaterial({ color: 0xa07443 }),
+  crateDark:new THREE.MeshLambertMaterial({ color: 0x7c5a33 }),
+  contGreen:new THREE.MeshLambertMaterial({ color: 0x3f6b45 }),
+  contBlue: new THREE.MeshLambertMaterial({ color: 0x3a5a80 }),
+  contRust: new THREE.MeshLambertMaterial({ color: 0x9a5432 }),
+  fence:    new THREE.MeshLambertMaterial({ color: 0x6b6f73 }),
+  wood:     new THREE.MeshLambertMaterial({ color: 0x8b6b47 }),
+  metal:    new THREE.MeshLambertMaterial({ color: 0xb0b6ba }),
+  lampGlow: new THREE.MeshBasicMaterial({ color: 0xfff2b0 }),
+  cloud:    new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x666666 }),
+  bush:     new THREE.MeshLambertMaterial({ color: 0x4f7a3a }),
+  sandbag:  new THREE.MeshLambertMaterial({ color: 0xb7a878 })
+};
+var BOX = new THREE.BoxGeometry(1, 1, 1);   // one box geometry, scaled everywhere
+
+function box(mat, x, y, z, sx, sy, sz, ry, shadow) {
+  var m = new THREE.Mesh(BOX, mat);
+  m.position.set(x, y, z);
+  m.scale.set(sx, sy, sz);
+  if (ry) m.rotation.y = ry;
+  if (shadow !== false) { m.castShadow = true; m.receiveShadow = true; }
+  scene.add(m);
+  return m;
+}
+
+// --- Ground ---
+var ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), MAT.grass);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// --- Roads (a cross + a ring feel) ---
+function road(x, z, w, d) {
+  box(MAT.road, x, 0.02, z, w, 0.04, d, 0, false).receiveShadow = true;
+}
+road(0, 0, 9, 180);      // main N-S road
+road(0, 0, 180, 9);      // main E-W road
+road(-55, -40, 60, 7);   // side road W
+road(55, 45, 60, 7);     // side road E
+// dashed centre lines on main roads
+for (var li = -80; li <= 80; li += 8) {
+  box(MAT.roadLine, 0, 0.05, li, 0.5, 0.02, 3, 0, false);
+  box(MAT.roadLine, li, 0.05, 0, 3, 0.02, 0.5, 0, false);
+}
+// sidewalks along main road
+box(MAT.sidewalk, 6.2, 0.06, 0, 3, 0.12, 180, 0, false).receiveShadow = true;
+box(MAT.sidewalk, -6.2, 0.06, 0, 3, 0.12, 180, 0, false).receiveShadow = true;
+
+// --- Building helpers ---
+function barracks(x, z, ry) {
+  var g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0; scene.add(g);
+  function part(mat, px, py, pz, sx, sy, sz) {
+    var m = new THREE.Mesh(BOX, mat); m.position.set(px, py, pz); m.scale.set(sx, sy, sz);
+    m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+  }
+  part(MAT.wallGreen, 0, 2.2, 0, 18, 4.4, 8);
+  part(MAT.roof, 0, 4.75, 0, 19, 0.7, 9);
+  part(MAT.door, 0, 1.4, 4.05, 2.2, 2.8, 0.15);
+  for (var i = -1; i <= 1; i += 2) {
+    part(MAT.window, i * 5.5, 2.6, 4.05, 2.6, 1.4, 0.12);
+    part(MAT.window, i * 5.5, 2.6, -4.05, 2.6, 1.4, 0.12);
+  }
+  // obstacle AABB (rotations used here are 0 / 90°, so swap extents)
+  var hw = 9.4, hd = 4.4;
+  if (Math.abs(Math.sin(ry || 0)) > 0.5) { var t = hw; hw = hd; hd = t; }
+  addObstacle(x, z, hw, hd, 5);
+}
+
+function garage(x, z, ry) {
+  var g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0; scene.add(g);
+  function part(mat, px, py, pz, sx, sy, sz) {
+    var m = new THREE.Mesh(BOX, mat); m.position.set(px, py, pz); m.scale.set(sx, sy, sz);
+    m.castShadow = true; m.receiveShadow = true; g.add(m);
+  }
+  part(MAT.wallGrey, 0, 2.6, 0, 12, 5.2, 10);
+  part(MAT.roofRed, 0, 5.5, 0, 13, 0.6, 11);
+  part(MAT.metal, 0, 2.1, 5.05, 8, 4.2, 0.2);   // big rolling door
+  part(MAT.door, -5, 1.3, 5.05, 1.6, 2.6, 0.18);
+  var hw = 6.5, hd = 5.5;
+  if (Math.abs(Math.sin(ry || 0)) > 0.5) { var t = hw; hw = hd; hd = t; }
+  addObstacle(x, z, hw, hd, 6);
+}
+
+function hq(x, z) {
+  box(MAT.wallTan, x, 3.5, z, 16, 7, 12);
+  box(MAT.roof, x, 7.3, z, 17, 0.6, 13);
+  box(MAT.door, x, 1.5, z + 6.05, 3, 3, 0.15);
+  box(MAT.window, x - 5, 5, z + 6.05, 3, 1.6, 0.12);
+  box(MAT.window, x + 5, 5, z + 6.05, 3, 1.6, 0.12);
+  box(MAT.window, x - 5, 2.5, z + 6.05, 3, 1.6, 0.12);
+  box(MAT.metal, x + 7.5, 9.5, z + 5.5, 0.25, 5, 0.25); // flag pole
+  box(new THREE.MeshLambertMaterial({ color: 0xd8b942 }), x + 8.4, 11.4, z + 5.5, 1.6, 1, 0.08);
+  addObstacle(x, z, 8.5, 6.5, 8);
+}
+
+function guardTower(x, z) {
+  for (var ix = -1; ix <= 1; ix += 2)
+    for (var iz = -1; iz <= 1; iz += 2)
+      box(MAT.wood, x + ix * 1.3, 3, z + iz * 1.3, 0.45, 6, 0.45);
+  box(MAT.wood, x, 6.2, z, 4, 0.4, 4);
+  box(MAT.wallTan, x, 7.3, z, 3.6, 1.8, 3.6);
+  box(MAT.roof, x, 8.6, z, 4.4, 0.5, 4.4);
+  addObstacle(x, z, 2.1, 2.1, 9);
+}
+
+function container(x, z, mat, ry) {
+  box(mat, x, 1.5, z, 8, 3, 3.2, ry || 0);
+  var hw = 4.2, hd = 1.9;
+  if (Math.abs(Math.sin(ry || 0)) > 0.5) { var t = hw; hw = hd; hd = t; }
+  addObstacle(x, z, hw, hd, 3.2);
+}
+
+function crateStack(x, z, n) {
+  for (var i = 0; i < n; i++) {
+    var s = 1.5 + Math.random() * 0.6;
+    box(i % 2 ? MAT.crateDark : MAT.crate,
+        x + (Math.random() - 0.5) * 1.6, s / 2 + (i > 2 ? 1.6 : 0), z + (Math.random() - 0.5) * 1.6,
+        s, s, s, Math.random() * 0.6);
+  }
+  addObstacle(x, z, 1.9, 1.9, 2.2);
+}
+
+function lamp(x, z) {
+  box(MAT.metal, x, 3, z, 0.22, 6, 0.22);
+  box(MAT.metal, x, 6, z + 0.55, 0.18, 0.18, 1.3);
+  box(MAT.lampGlow, x, 5.85, z + 1.1, 0.5, 0.25, 0.7, 0, false);
+  addObstacle(x, z, 0.35, 0.35, 6);
+}
+
+function bush(x, z) {
+  box(MAT.bush, x, 0.6, z, 1.4 + Math.random(), 1.2, 1.4 + Math.random(), Math.random());
+}
+
+function sandbags(x, z, ry) {
+  var g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0; scene.add(g);
+  for (var i = -2; i <= 2; i++) {
+    var m = new THREE.Mesh(BOX, MAT.sandbag);
+    m.position.set(i * 0.9, 0.3, 0); m.scale.set(0.95, 0.6, 0.7);
+    m.castShadow = true; m.receiveShadow = true; g.add(m);
+    if (Math.abs(i) < 2) {
+      var m2 = new THREE.Mesh(BOX, MAT.sandbag);
+      m2.position.set(i * 0.9 + 0.45, 0.85, 0); m2.scale.set(0.95, 0.55, 0.7);
+      m2.castShadow = true; g.add(m2);
+    }
+  }
+  addObstacle(x, z, 2.2, 0.6, 1.2);
+}
+
+// --- Perimeter fence with gate gaps on the main road ---
+(function buildFence() {
+  var F = CFG.mapHalf + 2;
+  function run(x1, z1, x2, z2) {
+    var dx = x2 - x1, dz = z2 - z1;
+    var len = Math.sqrt(dx * dx + dz * dz);
+    var steps = Math.round(len / 4);
+    for (var i = 0; i <= steps; i++) {
+      var px = x1 + (dx * i) / steps, pz = z1 + (dz * i) / steps;
+      if (Math.abs(px) < 6 && Math.abs(pz) >= F - 1) continue;   // gate gaps N & S
+      if (Math.abs(pz) < 6 && Math.abs(px) >= F - 1) continue;   // gate gaps E & W
+      box(MAT.fence, px, 1.4, pz, 0.3, 2.8, 0.3);
+    }
+    // rails
+    var mid = { x: (x1 + x2) / 2, z: (z1 + z2) / 2 };
+    var horiz = Math.abs(dx) > Math.abs(dz);
+    for (var r = 0; r < 2; r++) {
+      box(MAT.fence, mid.x, 1 + r, mid.z, horiz ? len : 0.12, 0.12, horiz ? 0.12 : len, 0, false);
+    }
+  }
+  run(-F, -F, F, -F); run(-F, F, F, F); run(-F, -F, -F, F); run(F, -F, F, F);
+  // fences are thin: give the AI a wall via 4 obstacle strips (players clamp to bounds anyway)
+})();
+
+// --- Place the base ---
+barracks(-28, -30, 0);  barracks(-28, -50, 0);  barracks(-28, -70, 0);
+barracks(28, -30, 0);   barracks(28, -52, 0);
+barracks(-55, 30, Math.PI / 2); barracks(-55, 60, Math.PI / 2);
+garage(45, 25, 0); garage(65, 25, 0); garage(45, -70, 0);
+hq(55, 70);
+guardTower(-88, -88); guardTower(88, -88); guardTower(-88, 88); guardTower(88, 88);
+guardTower(-14, 90); guardTower(14, -90);
+
+container(-60, -15, MAT.contGreen, 0);
+container(-60, -8, MAT.contBlue, 0);
+container(-70, 55, MAT.contRust, Math.PI / 2);
+container(-77, 55, MAT.contGreen, Math.PI / 2);
+container(70, -30, MAT.contBlue, 0);
+container(70, -40, MAT.contRust, 0);
+container(20, 60, MAT.contGreen, Math.PI / 2);
+
+crateStack(-45, -12, 4); crateStack(15, -20, 3); crateStack(-15, 40, 5);
+crateStack(60, 8, 3); crateStack(-70, -60, 4); crateStack(35, 80, 3);
+crateStack(80, 55, 4); crateStack(-85, 15, 3);
+
+sandbags(0, -18, 0); sandbags(-12, 12, Math.PI / 4); sandbags(30, 5, Math.PI / 2);
+sandbags(-40, 70, 0);
+
+for (var lx = -80; lx <= 80; lx += 32) { lamp(lx, 8); lamp(lx + 16, -8); }
+lamp(8, 40); lamp(-8, -60); lamp(8, 75); lamp(-8, 60);
+
+for (var bi = 0; bi < 26; bi++) {
+  var bx = (Math.random() - 0.5) * 180, bz = (Math.random() - 0.5) * 180;
+  if (Math.abs(bx) < 10 || Math.abs(bz) < 10) continue; // keep roads clear
+  bush(bx, bz);
+}
+
+// --- Clouds, drifting ---
+var clouds = [];
+for (var ci = 0; ci < 9; ci++) {
+  var cg = new THREE.Group();
+  var puffs = 3 + (Math.random() * 3 | 0);
+  for (var p = 0; p < puffs; p++) {
+    var pm = new THREE.Mesh(BOX, MAT.cloud);
+    pm.position.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 6);
+    pm.scale.set(6 + Math.random() * 8, 2.5 + Math.random() * 2, 4 + Math.random() * 4);
+    cg.add(pm);
+  }
+  cg.position.set((Math.random() - 0.5) * 400, 55 + Math.random() * 25, (Math.random() - 0.5) * 400);
+  cg.userData.speed = 1.2 + Math.random() * 1.6;
+  scene.add(cg);
+  clouds.push(cg);
+}
+
+/* ============================================================
+   4. CHARACTER FACTORY — the smiling white blockfolk
+   ============================================================ */
+var faceTexture = (function () {
+  var c = document.createElement("canvas");
+  c.width = c.height = 128;
+  var g = c.getContext("2d");
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = "#111";
+  // eyes
+  g.beginPath(); g.arc(44, 52, 9, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(84, 52, 9, 0, Math.PI * 2); g.fill();
+  // smile
+  g.strokeStyle = "#111"; g.lineWidth = 7; g.lineCap = "round";
+  g.beginPath(); g.arc(64, 66, 26, 0.25 * Math.PI, 0.75 * Math.PI); g.stroke();
+  var t = new THREE.CanvasTexture(c);
+  return t;
+})();
+
+var whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+var faceMat = new THREE.MeshLambertMaterial({ map: faceTexture });
+var headMats = [whiteMat, whiteMat, whiteMat, whiteMat, faceMat, whiteMat]; // +z face
+
+var GEO = {
+  head: new THREE.BoxGeometry(0.95, 0.95, 0.95),
+  body: new THREE.BoxGeometry(1.0, 1.2, 0.55),
+  arm:  new THREE.BoxGeometry(0.34, 1.1, 0.34),
+  leg:  new THREE.BoxGeometry(0.38, 1.05, 0.38)
+};
+
+// Builds one block character; parts are pivoted at shoulders/hips for animation
+function buildCharacter() {
+  var root = new THREE.Group();
+
+  var body = new THREE.Mesh(GEO.body, whiteMat);
+  body.position.y = 1.65; body.castShadow = true;
+  root.add(body);
+
+  var head = new THREE.Mesh(GEO.head, headMats);
+  head.position.y = 2.75; head.castShadow = true;
+  root.add(head);
+
+  function limb(geo, px, py, isArm) {
+    var pivot = new THREE.Group();
+    pivot.position.set(px, py, 0);
+    var mesh = new THREE.Mesh(geo, whiteMat);
+    mesh.position.y = isArm ? -0.5 : -0.52;
+    mesh.castShadow = true;
+    pivot.add(mesh);
+    root.add(pivot);
+    return pivot;
+  }
+  var armL = limb(GEO.arm, -0.68, 2.15, true);
+  var armR = limb(GEO.arm, 0.68, 2.15, true);
+  var legL = limb(GEO.leg, -0.26, 1.06, false);
+  var legR = limb(GEO.leg, 0.26, 1.06, false);
+
+  return { root: root, body: body, head: head, armL: armL, armR: armR, legL: legL, legR: legR };
+}
+
+// Walk-cycle limb swing; also used to reset pose
+function animateWalk(ch, phase, amp) {
+  ch.armL.rotation.x = Math.sin(phase) * amp;
+  ch.armR.rotation.x = -Math.sin(phase) * amp;
+  ch.legL.rotation.x = -Math.sin(phase) * amp;
+  ch.legR.rotation.x = Math.sin(phase) * amp;
+  ch.armL.rotation.z = 0; ch.armR.rotation.z = 0;
+  ch.head.rotation.set(0, 0, 0);
+  ch.body.rotation.set(0, 0, 0);
+}
+
+/* ============================================================
+   5. PLAYER
+   ============================================================ */
+var player = buildCharacter();
+player.root.position.set(0, 0, 85);
+scene.add(player.root);
+
+var pVel = new THREE.Vector3();
+var pYaw = Math.PI;             // facing into the base
+var walkPhase = 0;
+var punchAnim = 0;              // 1 -> 0 while swinging
+var isMovingNow = false, isSprintingNow = false;
+
+// circle-vs-AABB pushout, shared by player & NPCs
+function collide(pos, radius) {
+  for (var i = 0; i < obstacles.length; i++) {
+    var o = obstacles[i];
+    var cx = Math.max(o.x - o.hw, Math.min(pos.x, o.x + o.hw));
+    var cz = Math.max(o.z - o.hd, Math.min(pos.z, o.z + o.hd));
+    var dx = pos.x - cx, dz = pos.z - cz;
+    var d2 = dx * dx + dz * dz;
+    if (d2 < radius * radius) {
+      var d = Math.sqrt(d2) || 0.0001;
+      var push = (radius - d) / d;
+      pos.x += dx * push; pos.z += dz * push;
+    }
+  }
+  var B = CFG.mapHalf;
+  pos.x = Math.max(-B, Math.min(B, pos.x));
+  pos.z = Math.max(-B, Math.min(B, pos.z));
+}
+
+function pointBlocked(x, z, pad) {
+  for (var i = 0; i < obstacles.length; i++) {
+    var o = obstacles[i];
+    if (x > o.x - o.hw - pad && x < o.x + o.hw + pad &&
+        z > o.z - o.hd - pad && z < o.z + o.hd + pad) return o;
+  }
+  return null;
+}
+
+function updatePlayer(dt) {
+  // input direction relative to camera yaw
+  var ix = 0, iz = 0;
+  if (Input.keys.KeyW || Input.keys.ArrowUp) iz -= 1;
+  if (Input.keys.KeyS || Input.keys.ArrowDown) iz += 1;
+  if (Input.keys.KeyA || Input.keys.ArrowLeft) ix -= 1;
+  if (Input.keys.KeyD || Input.keys.ArrowRight) ix += 1;
+  if (Input.joy.active) { ix = Input.joy.x; iz = Input.joy.y; }
+
+  var mag = Math.min(1, Math.sqrt(ix * ix + iz * iz));
+  var wantSprint = (Input.keys.ShiftLeft || Input.keys.ShiftRight || Input.sprintBtn) && mag > 0.1;
+  var canSprint = wantSprint && state.stamina > 0;
+  var targetSpeed = (canSprint ? CFG.sprintSpeed : CFG.walkSpeed) * mag;
+
+  var desired = new THREE.Vector3();
+  if (mag > 0.05) {
+    var sin = Math.sin(Cam.yaw), cos = Math.cos(Cam.yaw);
+    desired.set(ix * cos - iz * sin, 0, ix * sin + iz * cos).normalize().multiplyScalar(targetSpeed);
+  }
+
+  // smooth acceleration / deceleration
+  var rate = mag > 0.05 ? CFG.accel : CFG.decel;
+  pVel.x += (desired.x - pVel.x) * Math.min(1, rate * dt / 8);
+  pVel.z += (desired.z - pVel.z) * Math.min(1, rate * dt / 8);
+
+  player.root.position.x += pVel.x * dt;
+  player.root.position.z += pVel.z * dt;
+  collide(player.root.position, 0.6);
+
+  var speed = Math.sqrt(pVel.x * pVel.x + pVel.z * pVel.z);
+  isMovingNow = speed > 0.8;
+  isSprintingNow = canSprint && isMovingNow;
+
+  // face movement direction
+  if (speed > 0.6) {
+    var targetYaw = Math.atan2(pVel.x, pVel.z);
+    var d = targetYaw - pYaw;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    pYaw += d * Math.min(1, 14 * dt);
+    player.root.rotation.y = pYaw;
+  }
+
+  // stamina
+  if (isSprintingNow) state.stamina = Math.max(0, state.stamina - CFG.staminaDrain * dt);
+  else state.stamina = Math.min(100, state.stamina + CFG.staminaRegen * dt);
+
+  // walk anim
+  walkPhase += dt * (isSprintingNow ? 15 : 10) * (speed / CFG.walkSpeed);
+  animateWalk(player, isMovingNow ? walkPhase : 0, isMovingNow ? (isSprintingNow ? 1.15 : 0.8) : 0);
+
+  // punch / saber swing animation on the right arm
+  if (punchAnim > 0) {
+    punchAnim = Math.max(0, punchAnim - dt / (state.hasSaber ? 0.3 : 0.22));
+    var k = 1 - punchAnim;                      // 0->1 over the swing
+    var swing = Math.sin(k * Math.PI);          // out and back
+    player.armR.rotation.x = -swing * (state.hasSaber ? 2.4 : 2.0);
+    player.armR.rotation.z = state.hasSaber ? swing * 0.9 : swing * 0.25;
+    if (state.hasSaber) player.body.rotation.y = swing * 0.5;
+  }
+
+  // subtle idle bob
+  player.root.position.y = isMovingNow ? Math.abs(Math.sin(walkPhase)) * 0.06 : Math.sin(state.time * 2) * 0.02;
+}
+
+/* ============================================================
+   6. NPCS & AI — the object pool of relentless smilers
+   ============================================================ */
+var npcs = [];
+(function buildPool() {
+  for (var i = 0; i < CFG.npcMax; i++) {
+    var ch = buildCharacter();
+    ch.root.visible = false;
+    scene.add(ch.root);
+    npcs.push({
+      ch: ch,
+      active: false,
+      state: "chase",             // chase | ragdoll | getup
+      vel: new THREE.Vector3(),
+      angVel: new THREE.Vector3(),// tumble speeds while ragdolling
+      limbSpin: [],               // per-limb chaos
+      timer: 0,
+      phase: Math.random() * 10,
+      speed: CFG.npcSpeed * (0.85 + Math.random() * 0.3),
+      avoidDir: 0
+    });
+  }
+})();
+
+function findSpawnPoint() {
+  for (var tries = 0; tries < 40; tries++) {
+    var edge = Math.random() * 4 | 0;
+    var B = CFG.mapHalf - 4;
+    var x, z;
+    if (edge === 0) { x = -B; z = (Math.random() - 0.5) * 2 * B; }
+    else if (edge === 1) { x = B; z = (Math.random() - 0.5) * 2 * B; }
+    else if (edge === 2) { z = -B; x = (Math.random() - 0.5) * 2 * B; }
+    else { z = B; x = (Math.random() - 0.5) * 2 * B; }
+    if (!pointBlocked(x, z, 1)) return { x: x, z: z };
+  }
+  return { x: 0, z: -CFG.mapHalf + 5 };
+}
+
+function spawnNPC() {
+  if (state.npcCount >= CFG.npcMax) return;
+  for (var i = 0; i < npcs.length; i++) {
+    var n = npcs[i];
+    if (!n.active) {
+      var p = findSpawnPoint();
+      n.active = true;
+      n.state = "chase";
+      n.vel.set(0, 0, 0);
+      n.ch.root.visible = true;
+      n.ch.root.position.set(p.x, 0, p.z);
+      n.ch.root.rotation.set(0, 0, 0);
+      animateWalk(n.ch, 0, 0);
+      state.npcCount++;
+      UI.npc();
+      return;
+    }
+  }
+}
+
+var tmpV = new THREE.Vector3();
+
+function updateNPC(n, dt) {
+  var root = n.ch.root;
+
+  /* ---------- RAGDOLL: tumble, bounce, roll, spin ---------- */
+  if (n.state === "ragdoll") {
+    n.timer -= dt;
+    n.vel.y -= 28 * dt;                       // gravity
+    root.position.addScaledVector(n.vel, dt);
+
+    if (root.position.y < 0.35) {             // hit the ground: bounce + friction
+      root.position.y = 0.35;
+      if (n.vel.y < -2) n.vel.y *= -0.45;
+      else n.vel.y = 0;
+      n.vel.x *= 0.94; n.vel.z *= 0.94;
+      n.angVel.multiplyScalar(0.96);
+    }
+    collide(root.position, 0.5);
+
+    root.rotation.x += n.angVel.x * dt;
+    root.rotation.y += n.angVel.y * dt;
+    root.rotation.z += n.angVel.z * dt;
+
+    // limbs + head flail independently — comedy physics
+    var L = [n.ch.armL, n.ch.armR, n.ch.legL, n.ch.legR, n.ch.head];
+    for (var i = 0; i < L.length; i++) {
+      L[i].rotation.x += n.limbSpin[i * 2] * dt;
+      L[i].rotation.z += n.limbSpin[i * 2 + 1] * dt;
+    }
+
+    if (n.timer <= 0) {
+      n.state = "getup";
+      n.timer = 0.45;
+      n.from = {
+        rx: root.rotation.x % (Math.PI * 2), ry: root.rotation.y, rz: root.rotation.z % (Math.PI * 2),
+        y: root.position.y
+      };
+    }
+    return;
+  }
+
+  /* ---------- GET UP: blend back to standing ---------- */
+  if (n.state === "getup") {
+    n.timer -= dt;
+    var k = 1 - Math.max(0, n.timer / 0.45);
+    var e = k * k * (3 - 2 * k); // smoothstep
+    root.rotation.x = n.from.rx * (1 - e);
+    root.rotation.z = n.from.rz * (1 - e);
+    root.position.y = n.from.y * (1 - e);
+    if (n.timer <= 0) {
+      root.rotation.set(0, root.rotation.y, 0);
+      root.position.y = 0;
+      animateWalk(n.ch, 0, 0);
+      n.state = "chase";
+    }
+    return;
+  }
+
+  /* ---------- CHASE with obstacle avoidance ---------- */
+  tmpV.subVectors(player.root.position, root.position);
+  tmpV.y = 0;
+  var dist = tmpV.length();
+  tmpV.normalize();
+
+  // steer around obstacles: probe ahead, rotate away if blocked
+  var probeX = root.position.x + tmpV.x * 2.2;
+  var probeZ = root.position.z + tmpV.z * 2.2;
+  if (pointBlocked(probeX, probeZ, 0.7)) {
+    if (n.avoidDir === 0) n.avoidDir = Math.random() < 0.5 ? 1 : -1;
+    var best = null;
+    for (var a = 1; a <= 4; a++) {
+      var ang = n.avoidDir * a * 0.55;
+      var rx = tmpV.x * Math.cos(ang) - tmpV.z * Math.sin(ang);
+      var rz = tmpV.x * Math.sin(ang) + tmpV.z * Math.cos(ang);
+      if (!pointBlocked(root.position.x + rx * 2.2, root.position.z + rz * 2.2, 0.7)) {
+        best = { x: rx, z: rz }; break;
+      }
+    }
+    if (!best) { n.avoidDir *= -1; best = { x: -tmpV.z * n.avoidDir, z: tmpV.x * n.avoidDir }; }
+    tmpV.set(best.x, 0, best.z);
+  } else if (Math.random() < dt * 0.5) {
+    n.avoidDir = 0; // occasionally reset preferred side
+  }
+
+  // separation so the crowd surrounds instead of stacking
+  for (var j = 0; j < npcs.length; j++) {
+    var m = npcs[j];
+    if (m === n || !m.active || m.state === "ragdoll") continue;
+    var sx = root.position.x - m.ch.root.position.x;
+    var sz = root.position.z - m.ch.root.position.z;
+    var sd2 = sx * sx + sz * sz;
+    if (sd2 < 1.7 && sd2 > 0.0001) {
+      var sd = Math.sqrt(sd2);
+      tmpV.x += (sx / sd) * (1.3 - sd) * 1.4;
+      tmpV.z += (sz / sd) * (1.3 - sd) * 1.4;
+    }
+  }
+  tmpV.normalize();
+
+  var stop = dist < 1.5 ? 0 : 1;   // crowd right up close, then hold
+  n.vel.x += (tmpV.x * n.speed * stop - n.vel.x) * Math.min(1, 6 * dt);
+  n.vel.z += (tmpV.z * n.speed * stop - n.vel.z) * Math.min(1, 6 * dt);
+
+  root.position.x += n.vel.x * dt;
+  root.position.z += n.vel.z * dt;
+  collide(root.position, 0.55);
+
+  var sp = Math.sqrt(n.vel.x * n.vel.x + n.vel.z * n.vel.z);
+  if (sp > 0.4) root.rotation.y = Math.atan2(tmpV.x, tmpV.z);
+
+  n.phase += dt * 11 * (sp / CFG.npcSpeed);
+  animateWalk(n.ch, sp > 0.5 ? n.phase : 0, sp > 0.5 ? 0.85 : 0);
+  root.position.y = sp > 0.5 ? Math.abs(Math.sin(n.phase)) * 0.05 : 0;
+}
+
+/* ============================================================
+   7. COMBAT, RAGDOLLS & THE HIDDEN LIGHTSABER
+   ============================================================ */
+function ragdollNPC(n, dir, power) {
+  n.state = "ragdoll";
+  n.timer = CFG.ragdollTime + Math.random() * 0.4;
+  n.vel.set(dir.x * power, power * 0.55 + 3, dir.z * power);
+  n.angVel.set(
+    (Math.random() - 0.5) * 14,
+    (Math.random() - 0.5) * 12,
+    (Math.random() - 0.5) * 14
+  );
+  n.limbSpin = [];
+  for (var i = 0; i < 10; i++) n.limbSpin.push((Math.random() - 0.5) * 24);
+}
+
+var hitDir = new THREE.Vector3();
+function doAttack() {
+  punchAnim = 1;
+  var range = state.hasSaber ? CFG.saberRange : CFG.punchRange;
+  var knock = state.hasSaber ? CFG.saberKnock : CFG.punchKnock;
+  var fwdX = Math.sin(pYaw), fwdZ = Math.cos(pYaw);
+  var hitAny = false;
+
+  for (var i = 0; i < npcs.length; i++) {
+    var n = npcs[i];
+    if (!n.active || n.state === "ragdoll") continue;
+    hitDir.subVectors(n.ch.root.position, player.root.position);
+    hitDir.y = 0;
+    var d = hitDir.length();
+    if (d > range) continue;
+    hitDir.normalize();
+    var dot = hitDir.x * fwdX + hitDir.z * fwdZ;
+    if (d > 1.2 && dot < 0.25) continue;      // roughly a frontal cone
+    ragdollNPC(n, hitDir, knock * (0.85 + Math.random() * 0.3));
+    hitAny = true;
+  }
+
+  if (state.hasSaber) {
+    AudioSys.saberSwing();
+    if (hitAny) AudioSys.saberHit();
+    saberFlash = 1;
+  } else {
+    if (hitAny) AudioSys.punch(); else AudioSys.punchMiss();
+  }
+}
+
+// ---- The hidden lightsaber ----
+// Tucked between the two rust/green containers in the far south-west corner.
+var saberPickup = (function () {
+  var g = new THREE.Group();
+  var hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.7, 10),
+    new THREE.MeshLambertMaterial({ color: 0x999da1 }));
+  g.add(hilt);
+  var blade = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 2.4, 8),
+    new THREE.MeshBasicMaterial({ color: 0x9df6ff }));
+  blade.position.y = 1.55;
+  g.add(blade);
+  // glow sprite for a bloom-ish halo
+  var sc = document.createElement("canvas"); sc.width = sc.height = 128;
+  var sg = sc.getContext("2d");
+  var grad = sg.createRadialGradient(64, 64, 4, 64, 64, 64);
+  grad.addColorStop(0, "rgba(120,240,255,0.9)");
+  grad.addColorStop(0.4, "rgba(60,200,255,0.35)");
+  grad.addColorStop(1, "rgba(60,200,255,0)");
+  sg.fillStyle = grad; sg.fillRect(0, 0, 128, 128);
+  var glowTex = new THREE.CanvasTexture(sc);
+  var glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true
+  }));
+  glow.scale.set(2.6, 4.2, 1);
+  glow.position.y = 1.0;
+  g.add(glow);
+  var light = new THREE.PointLight(0x55ddff, 0.9, 8);
+  light.position.y = 1.3;
+  g.add(light);
+  g.position.set(-73.5, 0.9, 55);     // hidden in the alley between the SW containers
+  scene.add(g);
+  g.userData.glowTex = glowTex;
+  return g;
+})();
+
+var saberEquipped = null, saberFlash = 0, saberLight = null;
+
+function equipSaber() {
+  state.hasSaber = true;
+  scene.remove(saberPickup);
+
+  var g = new THREE.Group();
+  var hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.55, 10),
+    new THREE.MeshLambertMaterial({ color: 0x999da1 }));
+  g.add(hilt);
+  var blade = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 8),
+    new THREE.MeshBasicMaterial({ color: 0x9df6ff }));
+  blade.position.y = 1.35;
+  g.add(blade);
+  var glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: saberPickup.userData.glowTex, blending: THREE.AdditiveBlending,
+    depthWrite: false, transparent: true
+  }));
+  glow.scale.set(1.6, 3.6, 1);
+  glow.position.y = 1.2;
+  g.add(glow);
+  saberLight = new THREE.PointLight(0x55ddff, 1.1, 9);
+  saberLight.position.y = 1.2;
+  g.add(saberLight);
+
+  // hang from the right hand
+  g.position.set(0, -1.0, 0.1);
+  g.rotation.x = Math.PI / 2 - 0.3;
+  player.armR.add(g);
+  saberEquipped = g;
+
+  AudioSys.pickup();
+  AudioSys.saberOn(true);
+  UI.weapon("Lightsaber");
+  var el = document.getElementById("saberNotify");
+  el.classList.remove("show");
+  void el.offsetWidth;               // restart the animation
+  el.classList.add("show");
+}
+
+/* ============================================================
+   8. CAMERA / INPUT / UI / MAIN LOOP
+   ============================================================ */
+var Cam = {
+  yaw: Math.PI, pitch: 0.32, dist: CFG.camDist,
+  pos: new THREE.Vector3(0, 6, 95)
+};
+
+// keeps the camera out of buildings by shrinking its distance
+function updateCamera(dt) {
+  var target = new THREE.Vector3(
+    player.root.position.x,
+    player.root.position.y + CFG.camHeight,
+    player.root.position.z
+  );
+  var dir = new THREE.Vector3(
+    Math.sin(Cam.yaw) * Math.cos(Cam.pitch),
+    Math.sin(Cam.pitch),
+    Math.cos(Cam.yaw) * Math.cos(Cam.pitch)
+  );
+  // march outward and stop before entering any obstacle taller than the ray
+  var maxD = Cam.dist;
+  var clear = maxD;
+  for (var t = 1; t <= 20; t++) {
+    var d = (t / 20) * maxD;
+    var px = target.x + dir.x * d, py = target.y + dir.y * d, pz = target.z + dir.z * d;
+    var o = pointBlocked(px, pz, 0.4);
+    if (o && py < o.h + 0.4) { clear = Math.max(1.6, d - 0.6); break; }
+  }
+  var desired = new THREE.Vector3().copy(target).addScaledVector(dir, clear);
+  Cam.pos.lerp(desired, Math.min(1, 10 * dt));
+  camera.position.copy(Cam.pos);
+  camera.lookAt(target.x, target.y, target.z);
+
+  // keep the shadow camera centred on the player
+  sun.position.set(player.root.position.x + 60, 90, player.root.position.z + 40);
+  sun.target.position.copy(player.root.position);
+}
+
+/* ---------- Input ---------- */
+var Input = {
+  keys: {},
+  joy: { active: false, x: 0, y: 0, id: null },
+  sprintBtn: false,
+  dragging: false, lastX: 0, lastY: 0, camTouchId: null
+};
+
+window.addEventListener("keydown", function (e) {
+  Input.keys[e.code] = true;
+  if (e.code === "KeyQ") doAttack();
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].indexOf(e.code) >= 0) e.preventDefault();
+});
+window.addEventListener("keyup", function (e) { Input.keys[e.code] = false; });
+
+// Mouse camera drag
+renderer.domElement.addEventListener("mousedown", function (e) {
+  Input.dragging = true; Input.lastX = e.clientX; Input.lastY = e.clientY;
+});
+window.addEventListener("mousemove", function (e) {
+  if (!Input.dragging) return;
+  Cam.yaw -= (e.clientX - Input.lastX) * 0.0045;
+  Cam.pitch = Math.max(-0.15, Math.min(1.15, Cam.pitch + (e.clientY - Input.lastY) * 0.0035));
+  Input.lastX = e.clientX; Input.lastY = e.clientY;
+});
+window.addEventListener("mouseup", function () { Input.dragging = false; });
+
+/* ---------- Touch controls ---------- */
+var isTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+if (isTouch) document.body.classList.add("isTouch");
+
+var joyBase = document.getElementById("joyBase");
+var joyKnob = document.getElementById("joyKnob");
+var joyOrigin = { x: 0, y: 0 };
+var JOY_R = 55;
+
+function setJoyVisual(dx, dy) {
+  joyKnob.style.left = (28 + dx) + "px";
+  joyKnob.style.top = (28 + dy) + "px";
+}
+
+document.addEventListener("touchstart", function (e) {
+  AudioSys.unlock();
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    var el = document.elementFromPoint(t.clientX, t.clientY);
+    if (el && (el.id === "punchBtn")) { doAttack(); el.classList.add("pressed"); continue; }
+    if (el && (el.id === "sprintBtn")) { Input.sprintBtn = true; Input.sprintTouchId = t.identifier; el.classList.add("pressed"); continue; }
+    if (t.clientX < window.innerWidth * 0.45 && t.clientY > window.innerHeight * 0.4 && Input.joy.id === null) {
+      Input.joy.id = t.identifier; Input.joy.active = true;
+      joyOrigin.x = t.clientX; joyOrigin.y = t.clientY;
+      joyBase.style.left = (t.clientX - 55) + "px";
+      joyBase.style.top = (t.clientY - 55) + "px";
+      joyBase.style.bottom = "auto";
+      setJoyVisual(0, 0);
+    } else if (Input.camTouchId === null) {
+      Input.camTouchId = t.identifier;
+      Input.lastX = t.clientX; Input.lastY = t.clientY;
+    }
+  }
+  if (e.target === renderer.domElement) e.preventDefault();
+}, { passive: false });
+
+document.addEventListener("touchmove", function (e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (t.identifier === Input.joy.id) {
+      var dx = t.clientX - joyOrigin.x, dy = t.clientY - joyOrigin.y;
+      var len = Math.sqrt(dx * dx + dy * dy);
+      if (len > JOY_R) { dx = dx / len * JOY_R; dy = dy / len * JOY_R; }
+      Input.joy.x = dx / JOY_R; Input.joy.y = dy / JOY_R;
+      setJoyVisual(dx, dy);
+    } else if (t.identifier === Input.camTouchId) {
+      Cam.yaw -= (t.clientX - Input.lastX) * 0.006;
+      Cam.pitch = Math.max(-0.15, Math.min(1.15, Cam.pitch + (t.clientY - Input.lastY) * 0.004));
+      Input.lastX = t.clientX; Input.lastY = t.clientY;
+    }
+  }
+  if (e.target === renderer.domElement) e.preventDefault();
+}, { passive: false });
+
+function endTouch(e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (t.identifier === Input.joy.id) {
+      Input.joy.id = null; Input.joy.active = false; Input.joy.x = Input.joy.y = 0;
+      joyBase.style.left = "40px"; joyBase.style.top = "auto"; joyBase.style.bottom = "60px";
+      setJoyVisual(0, 0);
+    }
+    if (t.identifier === Input.camTouchId) Input.camTouchId = null;
+    if (t.identifier === Input.sprintTouchId) {
+      Input.sprintBtn = false; Input.sprintTouchId = null;
+      document.getElementById("sprintBtn").classList.remove("pressed");
+    }
+  }
+  document.getElementById("punchBtn").classList.remove("pressed");
+}
+document.addEventListener("touchend", endTouch);
+document.addEventListener("touchcancel", endTouch);
+
+/* ---------- UI ---------- */
+var UI = {
+  staminaEl: document.getElementById("staminaBar"),
+  npcEl: document.getElementById("npcLine"),
+  weaponEl: document.getElementById("weaponLine"),
+  npc: function () { this.npcEl.textContent = "Smilers: " + state.npcCount; },
+  weapon: function (w) {
+    this.weaponEl.textContent = "Weapon: " + w;
+    this.weaponEl.classList.add("saber");
+  },
+  stamina: function () {
+    this.staminaEl.style.width = state.stamina + "%";
+    this.staminaEl.classList.toggle("low", state.stamina < 30);
+  }
+};
+
+setTimeout(function () {
+  var h = document.getElementById("hint");
+  if (h) h.style.opacity = "0";
+}, 12000);
+
+/* ---------- Resize ---------- */
+window.addEventListener("resize", function () {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ---------- Main loop ---------- */
+for (var s0 = 0; s0 < CFG.npcStart; s0++) spawnNPC();
+UI.npc();
+
+function tick() {
+  requestAnimationFrame(tick);
+  var dt = Math.min(0.05, clock.getDelta());   // clamp to avoid physics explosions on tab-switch
+  state.time += dt;
+
+  updatePlayer(dt);
+
+  for (var i = 0; i < npcs.length; i++) if (npcs[i].active) updateNPC(npcs[i], dt);
+
+  // steady reinforcements
+  state.spawnTimer += dt;
+  if (state.spawnTimer >= CFG.npcSpawnEvery && state.npcCount < CFG.npcMax) {
+    state.spawnTimer = 0;
+    spawnNPC();
+  }
+
+  // hidden lightsaber: bob, spin, sparkle... if you can find it
+  if (!state.hasSaber) {
+    saberPickup.rotation.y += dt * 1.5;
+    saberPickup.position.y = 0.9 + Math.sin(state.time * 2.2) * 0.15;
+    var dx = player.root.position.x - saberPickup.position.x;
+    var dz = player.root.position.z - saberPickup.position.z;
+    if (dx * dx + dz * dz < 2.6) equipSaber();
+  } else if (saberFlash > 0) {
+    saberFlash = Math.max(0, saberFlash - dt * 3);
+    saberLight.intensity = 1.1 + saberFlash * 2.2;
+  }
+
+  // clouds drift east forever
+  for (var c = 0; c < clouds.length; c++) {
+    clouds[c].position.x += clouds[c].userData.speed * dt;
+    if (clouds[c].position.x > 260) clouds[c].position.x = -260;
+  }
+
+  updateCamera(dt);
+  UI.stamina();
+  AudioSys.update(dt, isMovingNow, isSprintingNow);
+
+  renderer.render(scene, camera);
+}
+tick();
+
+})();
+</script>
+</body>
+</html>

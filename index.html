@@ -107,7 +107,21 @@
       "description": "Dodge asteroids, blast your way through endless waves, and try not to become space dust.",
       "gamePlatform": "Web Browser",
       "applicationCategory": "Game"
-    }
+    },
+    {
+      "@type":"VideoGame",
+      "position":6,
+      "name":"Smile Rush",
+      "url":"https://chatstupidity.com/smile-rush.html",
+      "image":"https://chatstupidity.com/img/smile-rush.png",
+      "description":"Run from smiling clones, punch them into ragdoll mode, manage your stamina, and find the hidden lightsaber.",
+      "gamePlatform":[
+        "Web Browser",
+        "Desktop",
+        "Mobile"
+      ],
+      "applicationCategory":"Game"
+    }    
   ]
 }
 </script>
@@ -261,6 +275,8 @@ header{
 .bad{background:var(--yellow)}
 .danger{background:linear-gradient(135deg,#FF5E3A,#FFB347);}
 .lava{ background:linear-gradient(135deg,#FF7A2F,#F5D329);}
+.smiler{background:linear-gradient(135deg,#8CF56A,#70C9FF);}
+
 
 .badge{
   position:absolute;
@@ -486,6 +502,34 @@ footer{
 </section>
 
 <section class="games" id="games">
+
+  <a href="smile-rush.html"
+    class="card large smiler"
+    onclick="trackGameClick('Smiler Rush')">
+
+    <div class="badge">SMILE OR RUN</div>
+
+    <div class="card-content">
+
+      <img
+        class="game-image"
+        src="img/smile-rush.png"
+        alt="Smiler Rush">
+
+      <h2>Smiler<br>Rush</h2>
+
+      <p>
+        Run from smiling clones. Press Q to punch.
+        Find the hidden lightsaber and launch everyone into orbit.
+      </p>
+
+      <div class="play">
+        Start Smiling →
+      </div>
+
+    </div>
+
+  </a>
 
   <a href="lava_parkour.html"
     class="card large lava"
