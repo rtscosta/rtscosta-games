@@ -129,6 +129,24 @@
   body.touch #help{max-width:min(60vw,250px);bottom:auto;top:96px;font-size:10px;line-height:1.55}
   body.touch .big{font-size:34px}
 
+  /* ---- touch: bigger targets, no scrolling needed ---- */
+  body.touch #menu{overflow-y:auto;align-items:flex-start;padding:14px 0 20px}
+  body.touch .mwrap{width:96vw}
+  body.touch .mwrap h1{font-size:min(44px,11vw);letter-spacing:-2px}
+  body.touch .mwrap .sub{margin:4px 0 14px;font-size:9px;letter-spacing:2px}
+  body.touch .modes{gap:8px}
+  body.touch .mode{flex:1 1 40%;max-width:none;min-height:0;padding:16px 10px;
+    text-align:center;border-width:2px}
+  body.touch .mode b{margin-bottom:0;font-size:16px;letter-spacing:2px}
+  body.touch .mode span{display:none}
+  body.touch .tlabel{margin-top:14px}
+  body.touch .times{gap:6px}
+  body.touch .tbtn{flex:1 1 30%;padding:14px 4px;font-size:11px;letter-spacing:1px}
+  body.touch .mwrap .hint{margin-top:14px;font-size:9px}
+  body.touch .mini{width:74px;height:46px;font-size:11px;border-radius:10px}
+  body.touch .minis{gap:10px}
+  body.touch .web{width:min(30vw,128px);height:min(30vw,128px);font-size:14px}
+
   #rotate{display:none;position:fixed;top:12px;left:50%;transform:translateX(-50%);
     padding:6px 12px;background:var(--red);color:var(--paper);font-size:10px;
     font-weight:700;letter-spacing:1.4px;pointer-events:none}
@@ -173,14 +191,16 @@
       <div class="mode" data-m="boss"><b>BOSSES</b><span>Three fights over the skyline. You have no punch — speed is the weapon. Slam them at pace or take the hit.</span></div>
       <div class="mode" data-m="hangout"><b>HANGOUT</b><span>Casual, but the skyline is busy. Other swingers work the avenues, each one in a suit of its own.</span></div>
     </div>
-    <div class="tlabel">TIME OF DAY</div>
+    <div class="tlabel">WORLD</div>
     <div class="times">
       <div class="tbtn" data-t="day">DAY</div>
       <div class="tbtn on" data-t="sunset">SUNSET</div>
       <div class="tbtn" data-t="neon">NEON</div>
       <div class="tbtn" data-t="comic">COMIC</div>
+      <div class="tbtn" data-t="generator">GENERATOR</div>
+      <div class="tbtn" data-t="mix">MIX</div>
     </div>
-    <div class="hint">PRESS M ANY TIME TO COME BACK HERE &nbsp;·&nbsp; N CYCLES THE CLOCK</div>
+    <div class="hint" id="menuHint">PRESS M ANY TIME TO COME BACK HERE &nbsp;·&nbsp; N CYCLES THE WORLD</div>
   </div>
 </div>
 
@@ -193,7 +213,8 @@
   <span class="k">CTRL</span> lock the mouse — then moving it turns you<br>
   <span class="k">MOUSE</span> aim — the web goes where you point<br>
   <span class="k">C</span> first / third person &nbsp; <span class="k">R</span> nearest rooftop<br>
-  <span class="k">X</span> change suit &nbsp; <span class="k">N</span> day / sunset / neon / comic<br>
+  <span class="k">X</span> change suit &nbsp; <span class="k">N</span> cycles the world<br>
+  <span class="k">L</span> ride the nearest train (in the void)<br>
   Hit the river and you're back at spawn.
 </div>
 
@@ -291,6 +312,40 @@ var SKIES = {
     street:'night', neon:1, roof:-1, ant:0x101a44, tank:0x1a2450,
     carEm:0xffe9a0, carEmI:0.8, map:'downtown',
     acc:[0x38e8ff, 0xff2fa0, 0x9d5cff, 0x39ff9e, 0xff6a2a]
+  },
+  /* inside the machine: magenta void, floating wreckage, nothing underneath */
+  generator: {
+    dir:[-0.30, 0.70, -0.55], sun:0xff5ac8, sunI:1.55,
+    hemiSky:0xff2f8e, hemiGnd:0x1de0ff, hemiI:1.05,
+    bounce:0x25ffb0, bounceI:0.65,
+    haze:0x8c0a52, dens:0.0040,
+    grad:[[0.00,'#08010a'],[0.14,'#2c0326'],[0.30,'#7a0748'],[0.42,'#c40d63'],
+          [0.50,'#ff1f8c'],[0.58,'#a30a6e'],[0.74,'#2a0330'],[1.00,'#05010a']],
+    glow:['rgba(255,240,255,0.95)','rgba(255,90,200,0.55)','rgba(60,255,190,0.16)'],
+    cloudW:['255,40,150','60,255,190','255,255,255','120,80,255'],
+    cloudC:['90,4,70','30,2,40'],
+    cloudA:1.0, stars:0,
+    water:0x2a0330, spec:0xff5ac8, shine:200, glitter:false, glitCol:null,
+    street:'night', neon:1, roof:-1, ant:0x2a0330, tank:0x3a0640,
+    carEm:0xff2a8c, carEmI:1.0, map:'generator',
+    acc:[0xff2a8c, 0x25ffb0, 0x2ad0ff, 0xff5a2a, 0xc44cff]
+  },
+  /* every city at once, strung along one ocean */
+  mix: {
+    dir:[-0.82, 0.34, -0.38], sun:0xffa25e, sunI:1.45,
+    hemiSky:0x7f7ad0, hemiGnd:0x3b2a44, hemiI:0.80,
+    bounce:0xff4fa0, bounceI:0.45,
+    haze:0x8f6a9c, dens:0.0030,
+    grad:[[0.00,'#231a52'],[0.16,'#3b2a72'],[0.32,'#6d4a94'],[0.42,'#b06a95'],
+          [0.475,'#ef8f79'],[0.50,'#ffc07a'],[0.53,'#c2618c'],[0.66,'#3a2456'],[1.00,'#0d0824']],
+    glow:['rgba(255,244,220,1)','rgba(255,190,140,0.8)','rgba(255,120,170,0.28)'],
+    cloudW:['255,170,140','255,90,170','120,200,255','255,220,190'],
+    cloudC:['70,54,120','44,30,90'],
+    cloudA:0.9, stars:120,
+    water:0x172a4e, spec:0xffb98a, shine:120, glitter:true, glitCol:'255,150,120',
+    street:'night', neon:1, roof:-1, ant:0x241a3a, tank:0x2e2450,
+    carEm:0xffe0a0, carEmI:0.75, map:'mix',
+    acc:[0x2ef0ff, 0xff2ea6, 0xb14cff, 0x39ff88, 0xffb020]
   }
 };
 /* neon accent per building palette, used for lit windows and roof strips */
@@ -366,9 +421,64 @@ var MAPS = {
       var r = dx*dx + dz*dz;
       return 0.80 + 1.15*Math.exp(-r*1.15);
     }
+  },
+  /* a shattered city hanging in a void — no ground at all */
+  generator: {
+    len: 2400, ground: false, floating: true, voidY: -55,
+    bounds: {x0:-940, x1:940, z0:-160, z1:2560, yTop:640, yBot:-55},
+    shore: [[0,-80,80],[300,-560,560],[700,-780,780],[1200,-820,820],
+            [1700,-780,780],[2100,-560,560],[2400,-80,80]],
+    park: null,
+    fill: 0.12, wMin: 10, wRng: 12, hBase: 16, hRng: 86, hPow: 1.4,
+    signs: 0.40, beacons: 0.55,
+    hoods: [[400,'RIFT EDGE'],[900,'FRACTURE'],[1500,'THE CORE'],
+            [2000,'SPLINTER'],[9999,'FALLOUT']],
+    mul: function(x, z){
+      var dx = x/720, dz = (z - 1200)/760;
+      return 0.60 + 0.75*Math.exp(-(dx*dx + dz*dz));
+    },
+    /* five rough strata of debris, so there's somewhere to swing to */
+    elev: function(i, j){
+      return 18 + Math.floor(hash(i,j,21)*5)*52 + hash(i,j,22)*34;
+    }
   }
 };
+/* MIX: all three cities on one strip of ocean, joined by causeways of towers */
+MAPS.mix = {
+  mixed: true, len: 10300, ground: true, spawnZ: 1650,
+  regions: [
+    {src:'manhattan', z0:0,    z1:4200,  dz:0},
+    {src:'downtown',  z0:4700, z1:7300,  dz:4700},
+    {src:'generator', z0:7900, z1:10300, dz:7900}
+  ],
+  /* the bridges between them: a narrow ridge of very tall towers */
+  causeway: {
+    half: 52, fill: -1, wMin: 12, wRng: 7, hBase: 120, hRng: 130, hPow: 1.0,
+    signs: 0.5, beacons: 0.85, mul: function(){ return 1; }
+  },
+  hoods: [[4200,'MANHATTAN'],[4700,'THE LONG SPAN'],[7300,'DOWNTOWN'],
+          [7900,'THE BREACH'],[99999,'THE VOID']]
+};
 var MAPNAME = 'manhattan', MAP = MAPS.manhattan, SHOWSIGNS = false;
+var FLOAT = false;                     /* is the player in a floating region right now */
+
+/* which sub-city covers this z? null means you're over a causeway or open water */
+function subForZ(z){
+  var R = MAP.regions;
+  if (!R) return null;
+  for (var i=0; i<R.length; i++) if (z >= R[i].z0 && z <= R[i].z1) return R[i];
+  return null;
+}
+function cfgAt(z){
+  if (!MAP.regions) return MAP;
+  var R = subForZ(z);
+  return R ? MAPS[R.src] : MAP.causeway;
+}
+function localZ(z){
+  if (!MAP.regions) return z;
+  var R = subForZ(z);
+  return R ? z - R.dz : z;
+}
 var LEN = MAP.len, SHORE = MAP.shore, PARK = MAP.park, HOODS = MAP.hoods;
 var _sl = 0, _sr = 0;
 function shoreAt(z){
@@ -384,7 +494,34 @@ function shoreAt(z){
   }
   return false;
 }
-function landAt(x, z){ return shoreAt(z) && x > _sl && x < _sr; }
+function shoreOf(cfg, lz){
+  var SH = cfg.shore;
+  if (!SH || lz < 0 || lz > SH[SH.length-1][0]) return false;
+  for (var i=1; i<SH.length; i++){
+    if (lz <= SH[i][0]){
+      var a = SH[i-1], b = SH[i], t = (lz - a[0])/(b[0] - a[0]);
+      _sl = a[1] + (b[1]-a[1])*t;
+      _sr = a[2] + (b[2]-a[2])*t;
+      return true;
+    }
+  }
+  return false;
+}
+/* inside the buildable footprint (not necessarily solid ground) */
+function landAt(x, z){
+  if (!MAP.regions) return shoreAt(z) && x > _sl && x < _sr;
+  var R = subForZ(z);
+  if (R) return shoreOf(MAPS[R.src], z - R.dz) && x > _sl && x < _sr;
+  if (z < 0 || z > MAP.len) return false;
+  return Math.abs(x) < MAP.causeway.half;          /* the causeway ridge */
+}
+/* is there something solid to stand on down there? */
+function hasGround(x, z){
+  if (!MAP.regions) return MAP.ground !== false && landAt(x, z);
+  var R = subForZ(z);
+  if (R) return MAPS[R.src].ground !== false && landAt(x, z);
+  return landAt(x, z);
+}
 function inPark(x, z){
   return PARK && x > PARK.x0 && x < PARK.x1 && z > PARK.z0 && z < PARK.z1;
 }
@@ -403,33 +540,64 @@ function hash(i,j,s){
 }
 var NPAL = 5;
 
+var WORLDT = 0;
+/* floating chunks drift on a sine. Everything that reads a building — the
+   renderer, the collider and the web raycast — goes through here, so they
+   can never disagree about where a chunk is this frame. */
+function syncB(b){
+  b.by = b.by0 + b.amp*Math.sin(WORLDT*b.fq + b.ph);
+  b.top = b.by + b.h;
+}
 function buildingAt(i,j){
   var key = i + ',' + j;
-  if (cache.has(key)) return cache.get(key);
+  if (cache.has(key)){
+    var cb = cache.get(key);
+    if (cb && cb.amp) syncB(cb);
+    return cb;
+  }
   var b = null;
   var x = i*CELL, z = j*CELL;
   var r0 = hash(i,j,1), r1 = hash(i,j,2), r2 = hash(i,j,3), r3 = hash(i,j,4), r4 = hash(i,j,5);
-  if (r0 > MAP.fill && !inPark(x,z)){
-    var w = MAP.wMin + r1*MAP.wRng, d = MAP.wMin + r2*MAP.wRng;
+  var C = cfgAt(z), lz = localZ(z);
+  if (r0 > C.fill && !inPark(x,z)){
+    var w = C.wMin + r1*C.wRng, d = C.wMin + r2*C.wRng;
     var cx = x + (r1-0.5)*2.4, cz = z + (r2-0.5)*2.4;
-    // footprint must sit on dry land
-    if (landAt(cx-w/2, cz-d/2) && landAt(cx+w/2, cz-d/2) &&
-        landAt(cx-w/2, cz+d/2) && landAt(cx+w/2, cz+d/2)){
-      var h = (MAP.hBase + Math.pow(r3, MAP.hPow)*MAP.hRng) * MAP.mul(cx, cz);
-      b = { cx:cx, cz:cz, w:w, d:d, h:h,
+    /* a causeway cell always gets its tower — the ridge has to stay unbroken
+       or the crossing becomes wider than a web and you'd be stranded */
+    var onCause = !!(MAP.regions && !subForZ(z) && Math.abs(x) < MAP.causeway.half);
+    if (onCause ||
+        (landAt(cx-w/2, cz-d/2) && landAt(cx+w/2, cz-d/2) &&
+         landAt(cx-w/2, cz+d/2) && landAt(cx+w/2, cz+d/2))){
+      var h = (C.hBase + Math.pow(r3, C.hPow)*C.hRng) * C.mul(cx, lz);
+      var by = C.floating ? C.elev(i,j) : LANDY;
+      var side = 0;
+      if (C.floating && hash(i,j,23) < 0.34){
+        /* a toppled chunk. Rotating the box 90 degrees keeps it axis-aligned,
+           so collision and the web raycast still work — but it must not spill
+           out of its grid cell or the raycast would step straight past it. */
+        side = 1;
+        var L = 15 + hash(i,j,24)*10;          // 15..25 long
+        var T = 5 + hash(i,j,25)*7;            // 5..12 thick
+        if (hash(i,j,26) < 0.5){ w = L; d = Math.min(d, 19); }
+        else { d = L; w = Math.min(w, 19); }
+        h = T;
+        cx = x; cz = z;                        // no jitter: keep it centred in the cell
+      }
+      b = { cx:cx, cz:cz, w:w, d:d, h:h, by:by, side:side,
             pal: Math.floor(r2*997) % NPAL,
             tw:0, td:0, th:0, sh:0, ant:0, tank:0, sgn:null, bcn:0 };
-      if (h > 78){                                   // stepped setback, very NYC
+      if (h > 78 && !side){                          // stepped setback, very NYC
         b.sh = h * (0.34 + r4*0.18);
         b.tw = w * 0.64; b.td = d * 0.64; b.th = h;
       }
-      if (h > 165) b.ant = 16 + r4*30;               // spire
+      if (side){ b.ant = 0; b.tank = 0; }
+      else if (h > 165) b.ant = 16 + r4*30;          // spire
       else if (h < 62 && r4 > 0.55) b.tank = 1;      // rooftop water tank
-      b.top = h;
+      b.top = by + h;
       /* aircraft warning light on anything tall */
-      if (h > 95 && hash(i,j,11) < MAP.beacons) b.bcn = 1 + (hash(i,j,12) < 0.5 ? 1 : 0);
+      if (h > 95 && hash(i,j,11) < C.beacons) b.bcn = 1 + (hash(i,j,12) < 0.5 ? 1 : 0);
       /* a lit sign bolted to one face */
-      if (MAP.signs && hash(i,j,6) < MAP.signs){
+      if (C.signs && hash(i,j,6) < C.signs){
         var f  = Math.floor(hash(i,j,7)*4) % 4;
         var s7 = hash(i,j,8), s9 = hash(i,j,9), s10 = hash(i,j,10);
         var tall = s7 < 0.62;
@@ -440,6 +608,13 @@ function buildingAt(i,j){
       }
     }
   }
+  if (b && C.floating){
+    b.by0 = b.by;
+    b.amp = 5 + hash(i,j,27)*11;          /* 5-16u of travel */
+    b.ph  = hash(i,j,28)*6.283;
+    b.fq  = 0.18 + hash(i,j,29)*0.27;     /* slow enough that nothing can pass through you */
+    syncB(b);
+  } else if (b){ b.by0 = b.by; b.amp = 0; b.ph = 0; b.fq = 0; }
   if (cache.size > 70000) cache.clear();
   cache.set(key, b);
   return b;
@@ -535,6 +710,7 @@ var PAL  = ['#8d8794','#a5967f','#7a8494','#b0a08c','#6f6c82'];
 var TRIM = ['#6b6674','#7e7161','#5d6673','#8a7c6b','#545264'];
 
 var boxGeo = new THREE.BoxGeometry(1,1,1); boxGeo.translate(0,0.5,0);
+var bitGeo = new THREE.BoxGeometry(1,1,1);   /* centred on its origin, unlike boxGeo */
 var CAP = 420;
 var towers = [];
 for (var pi=0; pi<NPAL; pi++){
@@ -634,26 +810,26 @@ function rebuildCity(ci, cj){
       if (n[k] >= CAP) continue;
       var R = roofs[k];
       if (b.th){
-        put(T, n[k]++, b.cx, LANDY, b.cz, b.w, b.sh, b.d);
-        if (n[k] < CAP) put(T, n[k]++, b.cx, LANDY, b.cz, b.tw, b.th, b.td);
+        put(T, n[k]++, b.cx, b.by, b.cz, b.w, b.sh, b.d);
+        if (n[k] < CAP) put(T, n[k]++, b.cx, b.by, b.cz, b.tw, b.th, b.td);
         if (rf[k] < 398){
-          put(R, rf[k]++, b.cx, LANDY + b.sh - 1.00, b.cz, b.w+0.7, 1.05, b.d+0.7);
-          put(R, rf[k]++, b.cx, LANDY + b.h  - 1.00, b.cz, b.tw+0.7, 1.05, b.td+0.7);
+          put(R, rf[k]++, b.cx, b.by + b.sh - 1.00, b.cz, b.w+0.7, 1.05, b.d+0.7);
+          put(R, rf[k]++, b.cx, b.by + b.h  - 1.00, b.cz, b.tw+0.7, 1.05, b.td+0.7);
         }
       } else {
-        put(T, n[k]++, b.cx, LANDY, b.cz, b.w, b.h, b.d);
-        if (rf[k] < 399) put(R, rf[k]++, b.cx, LANDY + b.h - 1.00, b.cz, b.w+0.7, 1.05, b.d+0.7);
+        put(T, n[k]++, b.cx, b.by, b.cz, b.w, b.h, b.d);
+        if (!b.side && rf[k] < 399) put(R, rf[k]++, b.cx, b.by + b.h - 1.00, b.cz, b.w+0.7, 1.05, b.d+0.7);
       }
-      if (b.ant && an < 339) put(antennas, an++, b.cx, LANDY + b.h, b.cz, 1.0, b.ant, 1.0);
+      if (b.ant && an < 339) put(antennas, an++, b.cx, b.by + b.h, b.cz, 1.0, b.ant, 1.0);
       if (b.bcn){                       /* red light on the very top */
         var bg = b.bcn - 1;
         if (bc[bg] < 219) put(beacons[bg], bc[bg]++,
-          b.cx, LANDY + b.h + (b.ant ? b.ant + 0.6 : 0.9), b.cz, 0.55, 0.55, 0.55);
+          b.cx, b.by + b.h + (b.ant ? b.ant + 0.6 : 0.9), b.cz, 0.55, 0.55, 0.55);
       }
       if (b.sgn && SHOWSIGNS){
         var G = b.sgn, SM = signs[G.c];
         if (sg[G.c] < 258){
-          var sy = LANDY + G.y, hw = b.w*0.5 + 0.14, hd = b.d*0.5 + 0.14;
+          var sy = b.by + G.y, hw = b.w*0.5 + 0.14, hd = b.d*0.5 + 0.14;
           if (G.f === 0)      put(SM, sg[G.c]++, b.cx + hw, sy, b.cz, 0.3, G.h, G.w);
           else if (G.f === 1) put(SM, sg[G.c]++, b.cx - hw, sy, b.cz, 0.3, G.h, G.w);
           else if (G.f === 2) put(SM, sg[G.c]++, b.cx, sy, b.cz + hd, G.w, G.h, 0.3);
@@ -661,7 +837,7 @@ function rebuildCity(ci, cj){
         }
       }
       if (b.tank && kn < 419){
-        put(tanks, kn++, b.cx + b.w*0.22, LANDY + b.h + 1.7, b.cz - b.d*0.2, 1.3, 3.4, 1.3);
+        put(tanks, kn++, b.cx + b.w*0.22, b.by + b.h + 1.7, b.cz - b.d*0.2, 1.3, 3.4, 1.3);
       }
     }
   }
@@ -701,25 +877,54 @@ function streetTexture(){
 }
 
 /* island slab built from the shoreline profile — rebuilt when the map changes */
-var islandMesh = null, parkMesh = null, treeMesh = null;
-function buildIsland(){
-  if (islandMesh){ scene.remove(islandMesh); islandMesh.geometry.dispose(); islandMesh = null; }
-  if (parkMesh){ scene.remove(parkMesh); parkMesh.geometry.dispose(); parkMesh.material.dispose(); parkMesh = null; }
-  if (treeMesh){ scene.remove(treeMesh); treeMesh.geometry.dispose(); treeMesh.material.dispose(); treeMesh = null; }
-
-  var shape = new THREE.Shape();
-  var pts = [], i, k;
-  for (i=0; i<SHORE.length; i++) pts.push([SHORE[i][2], -SHORE[i][0]]);   // up the east side
-  for (k=SHORE.length-1; k>=0; k--) pts.push([SHORE[k][1], -SHORE[k][0]]); // back down the west
+var islandMeshes = [], parkMesh = null, treeMesh = null;
+function islandShape(cfg, dz){
+  var shape = new THREE.Shape(), SH = cfg.shore, pts = [], i, k;
+  for (i=0; i<SH.length; i++) pts.push([SH[i][2], -(SH[i][0] + dz)]);
+  for (k=SH.length-1; k>=0; k--) pts.push([SH[k][1], -(SH[k][0] + dz)]);
   shape.moveTo(pts[0][0], pts[0][1]);
   for (var q=1; q<pts.length; q++) shape.lineTo(pts[q][0], pts[q][1]);
   shape.closePath();
   var geo = new THREE.ExtrudeGeometry(shape, {depth:LANDY, bevelEnabled:false, curveSegments:1});
   geo.rotateX(-Math.PI/2);
-  islandMesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+  return geo;
+}
+function addIsland(geo){
+  var m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
     map: streetTexture(), side: THREE.DoubleSide
   }));
-  scene.add(islandMesh);
+  scene.add(m); islandMeshes.push(m);
+  return m;
+}
+function buildIsland(){
+  var i;
+  for (i=0; i<islandMeshes.length; i++){
+    scene.remove(islandMeshes[i]);
+    islandMeshes[i].geometry.dispose();
+    islandMeshes[i].material.dispose();
+  }
+  islandMeshes.length = 0;
+  if (parkMesh){ scene.remove(parkMesh); parkMesh.geometry.dispose(); parkMesh.material.dispose(); parkMesh = null; }
+  if (treeMesh){ scene.remove(treeMesh); treeMesh.geometry.dispose(); treeMesh.material.dispose(); treeMesh = null; }
+
+  if (MAP.regions){
+    /* one slab per solid region, plus a ridge bridging each gap */
+    var R = MAP.regions, prev = null;
+    for (i=0; i<R.length; i++){
+      var cfg = MAPS[R[i].src];
+      if (cfg.ground !== false) addIsland(islandShape(cfg, R[i].dz));
+      if (prev !== null && R[i].z0 > prev){
+        var hw = MAP.causeway.half, len = R[i].z0 - prev;
+        var g = new THREE.BoxGeometry(hw*2, LANDY, len);
+        g.translate(0, LANDY/2, prev + len/2);
+        addIsland(g);
+      }
+      prev = R[i].z1;
+    }
+    return;
+  }
+  if (MAP.ground === false) return;      /* nothing to stand on out here */
+  addIsland(islandShape(MAP, 0));
 
   if (PARK){
     parkMesh = new THREE.Mesh(
@@ -751,13 +956,52 @@ function loadMap(name){
   SHOWSIGNS = !!MAP.signs;
   cache.clear();
   buildIsland();
+  water.visible = (MAP.ground !== false);
+  fitChamber();
+  FLOAT = !!MAP.floating;
+  VIEW = (MAP.floating || MAP.mixed) ? (touchDevice ? 9 : 12) : (touchDevice ? 11 : 16);
   water.position.set(0, 0, LEN*0.45);
   for (var i=0; i<NPAL; i++) signs[i].visible = SHOWSIGNS;
+  setBeams(!!MAP.floating);
+  setTrains(!!MAP.floating);
+  if (MAP.mixed) SHOWSIGNS = true;
   findSpawn();
   lastCell.i = 1e9;
   toSpawn();
   if (typeof setNPCs === 'function' && MODE === 'hangout') setNPCs(true);
   if (typeof hunterReset === 'function' && (MODE === 'escape' || MODE === 'boss')) hunterReset();
+}
+
+/* the chamber: a closed shell around the floating map */
+var chamber = null;
+(function buildChamber(){
+  var S = 256, cv = document.createElement('canvas'); cv.width = cv.height = S;
+  var g = cv.getContext('2d');
+  g.fillStyle = '#0a0210'; g.fillRect(0,0,S,S);
+  g.strokeStyle = '#ff1f8c'; g.lineWidth = 2;
+  for (var v=0; v<=S; v+=32){
+    g.globalAlpha = 0.30 + (v % 64 === 0 ? 0.4 : 0);
+    g.beginPath(); g.moveTo(v,0); g.lineTo(v,S); g.stroke();
+    g.beginPath(); g.moveTo(0,v); g.lineTo(S,v); g.stroke();
+  }
+  g.globalAlpha = 1;
+  g.fillStyle = '#25ffb0';
+  for (var q=0; q<40; q++) g.fillRect(rand()*S, rand()*S, 3 + rand()*22, 3);
+  var tx = new THREE.CanvasTexture(cv);
+  tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+  tx.repeat.set(14, 6);
+  chamber = new THREE.Mesh(new THREE.BoxGeometry(1,1,1),
+    new THREE.MeshBasicMaterial({map:tx, side:THREE.BackSide, fog:true}));
+  chamber.visible = false;
+  scene.add(chamber);
+})();
+function fitChamber(){
+  var B = MAP.bounds;
+  if (!B){ chamber.visible = false; return; }
+  var h = B.yTop - B.yBot;
+  chamber.scale.set(B.x1-B.x0, h, B.z1-B.z0);
+  chamber.position.set((B.x0+B.x1)/2, B.yBot + h/2, (B.z0+B.z1)/2);
+  chamber.visible = true;
 }
 
 buildIsland();
@@ -951,10 +1195,11 @@ function applyTime(t){
     carTop[c].material.emissiveIntensity = neon ? 0.7 : 0;
   }
 
-  if (islandMesh){
-    if (islandMesh.material.map) islandMesh.material.map.dispose();
-    islandMesh.material.map = streetTexture();
-    islandMesh.material.needsUpdate = true;
+  for (var im=0; im<islandMeshes.length; im++){
+    var IM = islandMeshes[im];
+    if (IM.material.map) IM.material.map.dispose();
+    IM.material.map = streetTexture();
+    IM.material.needsUpdate = true;
   }
   if (parkMesh) parkMesh.material.color.setHex(neon ? 0x0d2418 : 0x4a6b3a);
   if (treeMesh){
@@ -984,17 +1229,35 @@ function applyTime(t){
 /* ============================ traffic ============================ */
 var carGeo = new THREE.BoxGeometry(1,1,1); carGeo.translate(0,0.5,0);
 var carMeshes = [
-  plainMesh(0xe8b21e, carGeo, 40),   // yellow cabs
-  plainMesh(0x2b2f38, carGeo, 26),
-  plainMesh(0xbfc4c9, carGeo, 26)
+  plainMesh(0xe8b21e, carGeo, 110),  // yellow cabs
+  plainMesh(0x2b2f38, carGeo, 80),
+  plainMesh(0xbfc4c9, carGeo, 80)
 ];
 var carTop = [
-  plainMesh(0xd79f10, carGeo, 40),
-  plainMesh(0x1d212a, carGeo, 26),
-  plainMesh(0x9fa4a9, carGeo, 26)
+  plainMesh(0xd79f10, carGeo, 110),
+  plainMesh(0x1d212a, carGeo, 80),
+  plainMesh(0x9fa4a9, carGeo, 80)
 ];
-var CARS = [];
+/* cars you can actually hit — refreshed once a frame, then read by collide() */
+var NEARC = [], nearCount = 0;
+for (var nc=0; nc<48; nc++) NEARC.push({x:0, y:0, z:0, w:4.4, d:4.4, h:1.75});
+var CARS = [], wt = 0;
 function seedCar(car, cx, cz){
+  if (FLOAT){                              /* no roads — they fly, in skylanes near you */
+    var ang = rand()*Math.PI*2, rr = 25 + rand()*135;
+    var py0 = inMenu ? 240 : P[CHEST].p.y;
+    car.fx = cx + Math.cos(ang)*rr;
+    car.fz = cz + Math.sin(ang)*rr;
+    car.fy = clamp(py0 + (rand()-0.5)*130, 14, 520);
+    var head = rand()*Math.PI*2, sp = 22 + rand()*26;
+    car.vx = Math.cos(head)*sp;
+    car.vz = Math.sin(head)*sp;
+    car.vy = (rand()-0.5)*3.5;
+    car.head = head;
+    car.bank = (rand()-0.5)*0.5;
+    car.ok = true;
+    return;
+  }
   for (var a=0; a<8; a++){
     var ang = rand()*Math.PI*2, r = 60 + rand()*190;
     var x = cx + Math.cos(ang)*r, z = cz + Math.sin(ang)*r;
@@ -1008,18 +1271,45 @@ function seedCar(car, cx, cz){
   }
   car.ok = false;
 }
-for (var ci2=0; ci2<92; ci2++){
-  var grp = ci2 < 46 ? 0 : (ci2 < 69 ? 1 : 2);
+for (var ci2=0; ci2<260; ci2++){
+  var grp = ci2 < 120 ? 0 : (ci2 < 190 ? 1 : 2);
   CARS.push({axis:0, line:0, lane:0, pos:0, dir:1, spd:12, grp:grp, ok:false});
 }
 var _ce = new THREE.Euler(0,0,0,'YXZ');
 function updateCars(dt, px, pz){
   var n = [0,0,0];
+  nearCount = 0;
+  var py = inMenu ? 1e9 : P[CHEST].p.y;
   for (var i=0; i<CARS.length; i++){
     var c = CARS[i];
     if (!c.ok){ seedCar(c, px, pz); continue; }
-    c.pos += c.spd * c.dir * dt;
     var x, z, rot;
+    if (FLOAT){
+      c.fx += c.vx*dt; c.fy += c.vy*dt; c.fz += c.vz*dt;
+      x = c.fx; z = c.fz;
+      var ddx = x - px, ddz = z - pz;
+      var ddy = c.fy - py;
+      if (ddx*ddx + ddz*ddz > 190*190 || ddy*ddy > 150*150 ||
+          c.fy < -40 || c.fy > 560){ seedCar(c, px, pz); continue; }
+      var g2 = c.grp, m2 = carMeshes[g2], mt2 = carTop[g2], k2 = n[g2];
+      if (k2 >= (g2 === 0 ? 110 : 80)) continue;
+      _ce.set(Math.atan2(-c.vy, 30)*0.6, -c.head + Math.PI/2, c.bank);
+      _qt.setFromEuler(_ce);
+      _pv.set(x, c.fy, z); _sv.set(1.9, 1.0, 4.3);
+      _m.compose(_pv, _qt, _sv); m2.setMatrixAt(k2, _m);
+      _pv.set(x, c.fy + 1.0, z); _sv.set(1.7, 0.62, 2.3);
+      _m.compose(_pv, _qt, _sv); mt2.setMatrixAt(k2, _m);
+      n[g2] = k2 + 1;
+      if (nearCount < 48){
+        var ex = x-px, ey = c.fy-py, ez = z-pz;
+        if (ex*ex + ez*ez < 2500 && ey*ey < 900){
+          var E = NEARC[nearCount++]; E.x = x; E.y = c.fy; E.z = z;
+        E.w = 4.4; E.d = 4.4; E.h = 1.75;
+        }
+      }
+      continue;
+    }
+    c.pos += c.spd * c.dir * dt;
     if (c.axis === 0){
       x = c.pos; z = (c.line + 0.5)*CELL - c.dir*1.5; rot = Math.PI/2;
     } else {
@@ -1028,18 +1318,235 @@ function updateCars(dt, px, pz){
     var dx = x - px, dz = z - pz;
     if (dx*dx + dz*dz > 320*320 || !landAt(x,z)){ seedCar(c, px, pz); continue; }
     var g = c.grp, m = carMeshes[g], mt = carTop[g], k = n[g];
-    if (k >= (g === 0 ? 40 : 26)) continue;
+    if (k >= (g === 0 ? 110 : 80)) continue;
     _ce.set(0, rot, 0); _qt.setFromEuler(_ce);
     _pv.set(x, LANDY, z); _sv.set(1.9, 1.0, 4.3);
     _m.compose(_pv, _qt, _sv); m.setMatrixAt(k, _m);
     _pv.set(x, LANDY + 1.0, z); _sv.set(1.7, 0.62, 2.3);
     _m.compose(_pv, _qt, _sv); mt.setMatrixAt(k, _m);
     n[g] = k + 1;
+    if (nearCount < 48){
+      var qx = x-px, qy = LANDY-py, qz = z-pz;
+      if (qx*qx + qz*qz < 2500 && qy*qy < 900){
+        var Q = NEARC[nearCount++]; Q.x = x; Q.y = LANDY; Q.z = z;
+        Q.w = 4.4; Q.d = 4.4; Q.h = 1.75;
+      }
+    }
   }
   _qt.identity();
   for (var q=0; q<3; q++){
     carMeshes[q].count = n[q]; carMeshes[q].instanceMatrix.needsUpdate = true;
     carTop[q].count = n[q];    carTop[q].instanceMatrix.needsUpdate = true;
+  }
+}
+
+/* ---- flying trains: several, always recycled near you so you actually meet one ---- */
+var TRN = 3, TCARS = 6, TLEN = 24, TGAP = 27;
+var TRAINS = [], TCAR = [], trHull = null, trGlass = null, trFin = null;
+(function buildTrains(){
+  var cap = TRN*TCARS + 2;
+  trHull = new THREE.InstancedMesh(bitGeo,
+    new THREE.MeshLambertMaterial({color:0x39435c, emissive:0x121a30, emissiveIntensity:0.8}), cap);
+  trGlass = new THREE.InstancedMesh(bitGeo,
+    new THREE.MeshBasicMaterial({color:0x9ef4ff}), cap);
+  trFin = new THREE.InstancedMesh(bitGeo,
+    new THREE.MeshBasicMaterial({color:0xff2a8c}), cap);
+  var all = [trHull, trGlass, trFin];
+  for (var m=0; m<3; m++){
+    all[m].instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    all[m].frustumCulled = false; all[m].count = 0; all[m].visible = false;
+    scene.add(all[m]);
+  }
+  for (var t=0; t<TRN; t++) TRAINS.push({x:0, y:0, z:0, dir:1, spd:60, ok:false});
+  for (var c=0; c<TRN*TCARS; c++) TCAR.push({x:0, y:0, z:0, live:false});
+})();
+function trainReset(T, ti, px, py, pz){
+  var B = MAP.bounds || {x0:px-900, x1:px+900, yTop:620};
+  T.dir = rand() < 0.5 ? 1 : -1;
+  T.x = clamp(px + (rand()-0.5)*300, B.x0+40, B.x1-40);
+  T.y = clamp(py + (rand()-0.5)*150, 30, B.yTop-60);
+  T.z = pz - T.dir*(210 + rand()*150);          /* just off-screen, heading at you */
+  T.spd = 46 + rand()*26;
+  T.ok = true;
+  for (var k=0; k<2; k++){                       /* a web tied to this train lets go */
+    var w = webs[k];
+    if (w.rail >= ti*TCARS && w.rail < (ti+1)*TCARS) cutWeb(w);
+  }
+}
+function setTrains(on){
+  var all = [trHull, trGlass, trFin];
+  for (var m=0; m<3; m++){ all[m].visible = on; if (!on) all[m].count = 0; }
+  for (var t=0; t<TRAINS.length; t++) TRAINS[t].ok = false;
+  for (var c=0; c<TCAR.length; c++) TCAR[c].live = false;
+}
+var _tq = new THREE.Quaternion(), _te = new THREE.Euler(0,0,0,'YXZ');
+function updateTrains(dt, px, py, pz){
+  if (!trHull.visible) return;
+  var n = 0, t, i;
+  for (t=0; t<TRAINS.length; t++){
+    var T = TRAINS[t];
+    if (!T.ok){ trainReset(T, t, px, py, pz); }
+    T.z += T.spd * T.dir * dt;
+    var mid = T.z - T.dir*(TCARS-1)*TGAP*0.5;
+    var dx = T.x-px, dy = T.y-py, dz = mid-pz;
+    if (dx*dx + dz*dz > 560*560 || Math.abs(dy) > 400){ trainReset(T, t, px, py, pz); }
+    for (i=0; i<TCARS; i++){
+      var C = TCAR[t*TCARS + i];
+      C.x = T.x;
+      C.y = T.y + Math.sin(WORLDT*0.8 + i*0.5)*1.2;
+      C.z = T.z - T.dir*i*TGAP;
+      C.live = true;
+      _te.set(0, 0, Math.sin(WORLDT*0.6 + i*0.4)*0.05);
+      _tq.setFromEuler(_te);
+      _pv.set(C.x, C.y, C.z); _sv.set(5.2, 5.0, TLEN);
+      _m.compose(_pv, _tq, _sv); trHull.setMatrixAt(n, _m);
+      _pv.set(C.x, C.y + 0.6, C.z); _sv.set(5.35, 1.7, TLEN-3);
+      _m.compose(_pv, _tq, _sv); trGlass.setMatrixAt(n, _m);
+      _pv.set(C.x, C.y + 3.0, C.z); _sv.set(1.4, 0.7, TLEN*0.8);
+      _m.compose(_pv, _tq, _sv); trFin.setMatrixAt(n, _m);
+      n++;
+      if (nearCount < 48){                       /* solid */
+        var ex = C.x-px, ey = C.y-py, ez = C.z-pz;
+        if (ex*ex + ez*ez < 10000 && ey*ey < 3600){
+          var E = NEARC[nearCount++];
+          E.x = C.x; E.y = C.y - 2.5; E.z = C.z;
+          E.w = 5.2; E.d = TLEN; E.h = 5.0;
+        }
+      }
+    }
+  }
+  trHull.count = n;  trHull.instanceMatrix.needsUpdate = true;
+  trGlass.count = n; trGlass.instanceMatrix.needsUpdate = true;
+  trFin.count = n;   trFin.instanceMatrix.needsUpdate = true;
+}
+function toTrain(){
+  if (!trHull.visible) return false;
+  var c = P[CHEST].p, best = -1, bd = 0, i, d;
+  for (i=0; i<TCAR.length; i++){
+    if (!TCAR[i].live) continue;
+    d = Math.hypot(TCAR[i].x-c.x, TCAR[i].y-c.y, TCAR[i].z-c.z);
+    if (best < 0 || d < bd){ best = i; bd = d; }
+  }
+  if (best < 0) return false;
+  var C = TCAR[best], T = TRAINS[Math.floor(best/TCARS)];
+  /* stand on the roof, already moving at line speed or you'd be swept straight off */
+  placeAt(C.x, C.y + 2.7, C.z, 0, T.spd * T.dir);
+  yaw = T.dir > 0 ? Math.PI : 0;
+  return true;
+}
+function nearestTrain(px, pz){
+  var best = -1;
+  for (var c=0; c<TCAR.length; c++){
+    if (!TCAR[c].live) continue;
+    var d = Math.hypot(TCAR[c].x-px, TCAR[c].z-pz);
+    if (best < 0 || d < best) best = d;
+  }
+  return best;
+}
+/* web raycast against every carriage — returns a global carriage index or -1 */
+var _trHit = new THREE.Vector3();
+function rayTrain(o, d, maxD, out){
+  if (!trHull.visible) return -1;
+  var best = -1, bt = maxD;
+  for (var c=0; c<TCAR.length; c++){
+    var C = TCAR[c];
+    if (!C.live) continue;
+    var t = rayAABB(o, d, C.x, C.z, 5.2, TLEN, 5.0, C.y - 2.5);
+    if (t >= 0 && t < bt){ bt = t; best = c; }
+  }
+  if (best >= 0) out.copy(d).multiplyScalar(bt).add(o);
+  return best;
+}
+
+/* ---- the void: one colossal beam, a few smaller ones, and a cloud around you ---- */
+var beamMesh = [], BEAMS = [], AMB = [];
+var BEAMDEF = [
+  {per:22, sp:54, lane:31, size:13.5, spd:11},   /* the massive one */
+  {per:20, sp:26, lane:12,  size:5.5,  spd:19},
+  {per:20, sp:24, lane:11,  size:5.0,  spd:22},
+  {per:18, sp:28, lane:13,  size:6.0,  spd:17},
+  {per:18, sp:22, lane:10,  size:4.6,  spd:24},
+  {per:16, sp:30, lane:14,  size:6.5,  spd:15}
+];
+(function buildBeams(){
+  var g = new THREE.SphereGeometry(1, 12, 9);
+  var cols = [0xff1240, 0x04030a, 0x1f8cff];      /* red · black core · blue */
+  for (var c=0; c<3; c++){
+    var m = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({color:cols[c]}), 300);
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    m.frustumCulled = false; m.count = 0; m.visible = false;
+    scene.add(m); beamMesh.push(m);
+  }
+  for (var i=0; i<BEAMDEF.length; i++){
+    BEAMS.push({o:new THREE.Vector3(), d:new THREE.Vector3(), n:new THREE.Vector3(),
+                t:0, spd:12, def:BEAMDEF[i], ok:false});
+  }
+  for (var k=0; k<96; k++){
+    AMB.push({p:new THREE.Vector3(), v:new THREE.Vector3(), s:4, g:k%3, ok:false});
+  }
+})();
+var _bm = new THREE.Vector3();
+function seedBeam(B, px, py, pz){
+  var big = (B.def === BEAMDEF[0]);
+  var a = rand()*Math.PI*2, e = (rand()-0.5)*(big ? 0.5 : 1.1);
+  B.d.set(Math.cos(a)*Math.cos(e), Math.sin(e), Math.sin(a)*Math.cos(e)).normalize();
+  B.n.set(-B.d.z, 0, B.d.x);
+  if (B.n.lengthSq() < 1e-4) B.n.set(1,0,0);
+  B.n.normalize();
+  var off = rand()*Math.PI*2, r = big ? (90 + rand()*90) : (35 + rand()*185);
+  B.o.set(px + Math.cos(off)*r, py + (rand()-0.5)*(big ? 130 : 220), pz + Math.sin(off)*r);
+  B.o.addScaledVector(B.d, -B.def.sp*B.def.per*0.5);
+  B.spd = B.def.spd * (0.75 + rand()*0.5);
+  B.t = rand()*B.def.sp;
+  B.ok = true;
+}
+function seedAmb(A, px, py, pz){
+  var a = rand()*Math.PI*2, e = (rand()-0.5)*2.4, r = 28 + rand()*145;
+  A.p.set(px + Math.cos(a)*Math.cos(e)*r, py + Math.sin(e)*r*0.75, pz + Math.sin(a)*Math.cos(e)*r);
+  A.v.set((rand()-0.5)*7, (rand()-0.5)*4.5, (rand()-0.5)*7);
+  A.s = 2.6 + Math.pow(rand(), 1.9)*7.5;
+  A.ok = true;
+}
+function updateBeams(dt, px, py, pz){
+  var n = [0,0,0], i, k, L, B, D;
+  for (i=0; i<BEAMS.length; i++){
+    B = BEAMS[i]; D = B.def;
+    if (!B.ok){ seedBeam(B, px, py, pz); continue; }
+    B.t += B.spd*dt;
+    if (B.t > D.sp) B.t -= D.sp;
+    _bm.copy(B.o).addScaledVector(B.d, D.sp*D.per*0.5);
+    var dx = _bm.x-px, dy = _bm.y-py, dz = _bm.z-pz;
+    if (dx*dx + dz*dz > 460*460 || Math.abs(dy) > 300){ seedBeam(B, px, py, pz); continue; }
+    for (k=0; k<D.per; k++){
+      var along = k*D.sp + B.t;
+      var fade = 0.5 + 0.5*Math.sin((k/D.per)*Math.PI);
+      for (L=0; L<3; L++){
+        if (n[L] >= 298) continue;
+        var sz = D.size * (L === 1 ? 1.18 : 1.0) * fade;
+        _bm.copy(B.o).addScaledVector(B.d, along).addScaledVector(B.n, (L-1)*D.lane);
+        put(beamMesh[L], n[L]++, _bm.x, _bm.y, _bm.z, sz, sz, sz);
+      }
+    }
+  }
+  for (i=0; i<AMB.length; i++){          /* loose balls drifting right around you */
+    var A = AMB[i];
+    if (!A.ok){ seedAmb(A, px, py, pz); continue; }
+    A.p.addScaledVector(A.v, dt);
+    var ax = A.p.x-px, ay = A.p.y-py, az = A.p.z-pz;
+    if (ax*ax + ay*ay + az*az > 235*235){ seedAmb(A, px, py, pz); continue; }
+    if (n[A.g] >= 298) continue;
+    put(beamMesh[A.g], n[A.g]++, A.p.x, A.p.y, A.p.z, A.s, A.s, A.s);
+  }
+  for (i=0; i<3; i++){ beamMesh[i].count = n[i]; beamMesh[i].instanceMatrix.needsUpdate = true; }
+}
+function setBeams(on){
+  for (var i=0; i<beamMesh.length; i++){
+    beamMesh[i].visible = on;
+    if (!on) beamMesh[i].count = 0;
+  }
+  if (on){
+    for (var b2=0; b2<BEAMS.length; b2++) BEAMS[b2].ok = false;
+    for (var a2=0; a2<AMB.length; a2++) AMB[a2].ok = false;
   }
 }
 
@@ -1096,13 +1603,21 @@ function solveLink(BD, L){
   B.p.addScaledVector(_d, -f);
 }
 
-function boxPush(pt, r, cx, cz, w, d, h){
-  var hx = w*0.5+r, hz = d*0.5+r, hy = LANDY+h+r;
+/* `by` is the underside of the box. Grounded blocks reach down forever;
+   floating ones get a real bottom face you can bump your head on. */
+function boxPush(pt, r, cx, cz, w, d, h, by){
+  var base = (by === undefined) ? LANDY : by;
+  var hx = w*0.5+r, hz = d*0.5+r, top = base+h+r, bot = base-r;
   var dx = pt.p.x-cx, dz = pt.p.z-cz;
-  if (dx < -hx || dx > hx || dz < -hz || dz > hz || pt.p.y > hy) return false;
-  var e1 = hx-dx, e2 = hx+dx, e3 = hz-dz, e4 = hz+dz, e5 = hy-pt.p.y;
+  if (dx < -hx || dx > hx || dz < -hz || dz > hz || pt.p.y > top) return false;
+  var floats = base > LANDY + 0.5;         /* anything lifted off the ground has a bottom */
+  if (floats && pt.p.y < bot) return false;
+  var e1 = hx-dx, e2 = hx+dx, e3 = hz-dz, e4 = hz+dz, e5 = top-pt.p.y;
   var m = Math.min(e1,e2,e3,e4,e5);
-  if (m === e5) pt.p.y = hy;
+  var e6 = floats ? (pt.p.y-bot) : Infinity;
+  if (e6 < m) m = e6;
+  if (m === e6) pt.p.y = bot;
+  else if (m === e5) pt.p.y = top;
   else if (m === e1) pt.p.x = cx+hx;
   else if (m === e2) pt.p.x = cx-hx;
   else if (m === e3) pt.p.z = cz+hz;
@@ -1112,17 +1627,30 @@ function boxPush(pt, r, cx, cz, w, d, h){
 
 function collide(pt, friction){
   var r = pt.r, moved = false;
-  if (landAt(pt.p.x, pt.p.z) && pt.p.y < LANDY + r){ pt.p.y = LANDY + r; moved = true; }
+  if (hasGround(pt.p.x, pt.p.z) && pt.p.y < LANDY + r){ pt.p.y = LANDY + r; moved = true; }
   var i0 = Math.round(pt.p.x/CELL), j0 = Math.round(pt.p.z/CELL);
   for (var j=j0-1; j<=j0+1; j++) for (var i=i0-1; i<=i0+1; i++){
     var b = buildingAt(i,j); if (!b) continue;
     if (b.th){
-      if (boxPush(pt, r, b.cx, b.cz, b.w, b.d, b.sh)) moved = true;
-      if (boxPush(pt, r, b.cx, b.cz, b.tw, b.td, b.th)) moved = true;
-    } else if (boxPush(pt, r, b.cx, b.cz, b.w, b.d, b.h)) moved = true;
+      if (boxPush(pt, r, b.cx, b.cz, b.w, b.d, b.sh, b.by)) moved = true;
+      if (boxPush(pt, r, b.cx, b.cz, b.tw, b.td, b.th, b.by)) moved = true;
+    } else if (boxPush(pt, r, b.cx, b.cz, b.w, b.d, b.h, b.by)) moved = true;
     /* rooftop clutter is solid too — you can land on a water tank */
-    if (b.tank && boxPush(pt, r, b.cx + b.w*0.22, b.cz - b.d*0.2, 2.7, 2.7, b.h + 3.4)) moved = true;
-    if (b.ant && boxPush(pt, r, b.cx, b.cz, 1.0, 1.0, b.h + b.ant)) moved = true;
+    if (b.tank && boxPush(pt, r, b.cx + b.w*0.22, b.cz - b.d*0.2, 2.7, 2.7, b.h + 3.4, b.by)) moved = true;
+    if (b.ant && boxPush(pt, r, b.cx, b.cz, 1.0, 1.0, b.h + b.ant, b.by)) moved = true;
+  }
+  var BB = MAP.bounds;
+  if (BB){                                  /* you're inside a sealed chamber */
+    if (pt.p.x < BB.x0+r){ pt.p.x = BB.x0+r; moved = true; }
+    else if (pt.p.x > BB.x1-r){ pt.p.x = BB.x1-r; moved = true; }
+    if (pt.p.z < BB.z0+r){ pt.p.z = BB.z0+r; moved = true; }
+    else if (pt.p.z > BB.z1-r){ pt.p.z = BB.z1-r; moved = true; }
+    if (pt.p.y > BB.yTop-r){ pt.p.y = BB.yTop-r; moved = true; }
+    else if (pt.p.y < BB.yBot+r){ pt.p.y = BB.yBot+r; moved = true; }
+  }
+  for (var q=0; q<nearCount; q++){          /* traffic is solid — you can land on a cab */
+    var C = NEARC[q];
+    if (boxPush(pt, r, C.x, C.z, C.w, C.d, C.h, C.y)) moved = true;
   }
   pt.hit = moved;
   if (moved && friction) pt.q.lerp(pt.p, 0.22);
@@ -1131,14 +1659,17 @@ function collide(pt, friction){
 /* ============================ webs ============================ */
 function Web(hand){
   return {hand:hand, held:false, live:false, miss:false,
-          anchor:new THREE.Vector3(), len:0, grow:0, dist:0, out:false};
+          anchor:new THREE.Vector3(), len:0, grow:0, dist:0, out:false,
+          rail:-1, off:new THREE.Vector3()};
 }
 var webs = [Web(HAR), Web(HAL)];
 var MAXWEB = 130;
 
-function rayAABB(o, d, cx, cz, w, dd, h){
+function rayAABB(o, d, cx, cz, w, dd, h, by){
+  var base = (by === undefined) ? LANDY : by;
   var tmin = 0, tmax = 1e9;
-  var lo = [cx-w*0.5, 0, cz-dd*0.5], hi = [cx+w*0.5, LANDY+h, cz+dd*0.5];
+  var lo = [cx-w*0.5, base > LANDY + 0.5 ? base : 0, cz-dd*0.5];
+  var hi = [cx+w*0.5, base+h, cz+dd*0.5];
   var oo = [o.x,o.y,o.z], vv = [d.x,d.y,d.z];
   for (var a=0; a<3; a++){
     if (Math.abs(vv[a]) < 1e-8){ if (oo[a] < lo[a] || oo[a] > hi[a]) return -1; continue; }
@@ -1152,6 +1683,19 @@ function rayAABB(o, d, cx, cz, w, dd, h){
   return tmin;
 }
 var _hitPt = new THREE.Vector3();
+/* distance from a point inside the chamber to the shell along d (-1 if none) */
+function boundsT(o, d){
+  var B = MAP.bounds;
+  if (!B) return -1;
+  var t = Infinity, v;
+  if (d.x >  1e-9){ v = (B.x1 - o.x)/d.x; if (v < t) t = v; }
+  else if (d.x < -1e-9){ v = (B.x0 - o.x)/d.x; if (v < t) t = v; }
+  if (d.y >  1e-9){ v = (B.yTop - o.y)/d.y; if (v < t) t = v; }
+  else if (d.y < -1e-9){ v = (B.yBot - o.y)/d.y; if (v < t) t = v; }
+  if (d.z >  1e-9){ v = (B.z1 - o.z)/d.z; if (v < t) t = v; }
+  else if (d.z < -1e-9){ v = (B.z0 - o.z)/d.z; if (v < t) t = v; }
+  return (t === Infinity || t < 0) ? -1 : t;
+}
 function rayCity(o, d, maxD){
   var i = Math.round(o.x/CELL), j = Math.round(o.z/CELL);
   var si = d.x > 0 ? 1 : -1, sj = d.z > 0 ? 1 : -1;
@@ -1160,30 +1704,37 @@ function rayCity(o, d, maxD){
   else { tMaxX = ((i + si*0.5)*CELL - o.x)/d.x; tDX = Math.abs(CELL/d.x); }
   if (Math.abs(d.z) < 1e-8){ tMaxZ = 1e9; tDZ = 1e9; }
   else { tMaxZ = ((j + sj*0.5)*CELL - o.z)/d.z; tDZ = Math.abs(CELL/d.z); }
+  /* the walls, roof and floor are anchors too — but a building in front wins */
+  var wallT = boundsT(o, d);
+  var lim = (wallT >= 0 && wallT < maxD) ? wallT : maxD;
   var t = 0;
-  for (var n=0; n<80 && t < maxD; n++){
+  for (var n=0; n<80 && t < lim; n++){
     var b = buildingAt(i,j);
     if (b){
-      var ht = b.th ? rayAABB(o,d,b.cx,b.cz,b.w,b.d,b.sh) : rayAABB(o,d,b.cx,b.cz,b.w,b.d,b.h);
+      var ht = b.th ? rayAABB(o,d,b.cx,b.cz,b.w,b.d,b.sh,b.by) : rayAABB(o,d,b.cx,b.cz,b.w,b.d,b.h,b.by);
       if (b.th){
-        var h2 = rayAABB(o,d,b.cx,b.cz,b.tw,b.td,b.th);
+        var h2 = rayAABB(o,d,b.cx,b.cz,b.tw,b.td,b.th,b.by);
         if (h2 >= 0 && (ht < 0 || h2 < ht)) ht = h2;
       }
       if (b.tank){
-        var h3 = rayAABB(o,d,b.cx + b.w*0.22, b.cz - b.d*0.2, 2.7, 2.7, b.h + 3.4);
+        var h3 = rayAABB(o,d,b.cx + b.w*0.22, b.cz - b.d*0.2, 2.7, 2.7, b.h + 3.4, b.by);
         if (h3 >= 0 && (ht < 0 || h3 < ht)) ht = h3;
       }
       if (b.ant){
-        var h4 = rayAABB(o,d,b.cx,b.cz,1.0,1.0,b.h + b.ant);
+        var h4 = rayAABB(o,d,b.cx,b.cz,1.0,1.0,b.h + b.ant,b.by);
         if (h4 >= 0 && (ht < 0 || h4 < ht)) ht = h4;
       }
-      if (ht >= 0 && ht < maxD){
+      if (ht >= 0 && ht < lim){
         _hitPt.copy(d).multiplyScalar(ht).add(o);
         return _hitPt;
       }
     }
     if (tMaxX < tMaxZ){ t = tMaxX; i += si; tMaxX += tDX; }
     else { t = tMaxZ; j += sj; tMaxZ += tDZ; }
+  }
+  if (wallT >= 0 && wallT <= maxD){
+    _hitPt.copy(d).multiplyScalar(wallT).add(o);
+    return _hitPt;
   }
   return null;
 }
@@ -1199,7 +1750,19 @@ function fireWeb(w){
   if (w.live || w.out) return;
   var hit = aimRay();
   var hand = P[w.hand].p;
-  w.grow = 0; w.out = true;
+  w.grow = 0; w.out = true; w.rail = -1;
+  /* did the aim ray land on the train instead? then ride it */
+  if (trHull.visible){
+    var ti = rayTrain(_aimO, _aimD, MAXWEB, _trHit);
+    if (ti >= 0 && (!hit || _trHit.distanceTo(_aimO) < hit.distanceTo(_aimO))){
+      w.rail = ti;
+      w.off.set(_trHit.x - TCAR[ti].x, _trHit.y - TCAR[ti].y, _trHit.z - TCAR[ti].z);
+      w.anchor.copy(_trHit);
+      w.dist = hand.distanceTo(w.anchor);
+      w.miss = w.dist > MAXWEB;
+      return;
+    }
+  }
   if (hit){
     w.anchor.copy(hit);
     w.dist = hand.distanceTo(w.anchor);
@@ -1210,10 +1773,14 @@ function fireWeb(w){
     w.miss = true;
   }
 }
-function cutWeb(w){ w.live = false; w.out = false; w.grow = 0; }
+function cutWeb(w){ w.live = false; w.out = false; w.grow = 0; w.rail = -1; }
 function updateWebs(dt){
   for (var k=0; k<2; k++){
     var w = webs[k];
+    if (w.rail >= 0 && TCAR[w.rail] && TCAR[w.rail].live){   /* the anchor rides the carriage */
+      var RC = TCAR[w.rail];
+      w.anchor.set(RC.x + w.off.x, RC.y + w.off.y, RC.z + w.off.z);
+    }
     if (!w.out){ if (w.held && !w.live) fireWeb(w); continue; }
     if (w.grow < 1){
       w.grow = Math.min(1, w.grow + (260/Math.max(4,w.dist))*dt);
@@ -1569,6 +2136,9 @@ function setTouch(on){
   var h = document.getElementById('help');
   if (helpDesktop === null) helpDesktop = h.innerHTML;
   h.innerHTML = on ? helpTouch : helpDesktop;
+  var mh = document.getElementById('menuHint');
+  if (mh) mh.textContent = on ? 'TAP A MODE TO PLAY · TAP MENU ANY TIME TO COME BACK'
+                              : 'PRESS M ANY TIME TO COME BACK HERE · N CYCLES THE WORLD';
   h.classList.remove('dim');
   hideHelp = performance.now() + 15000;
   mouse.x = 0; mouse.y = 0; lookMouse.x = 0; lookMouse.y = 0;
@@ -1664,12 +2234,13 @@ window.addEventListener('keydown', function(e){
   if ((k === 'ControlLeft' || k === 'ControlRight') && !keys.ct){ keys.ct = true; toggleLock(); }
   if (k === 'KeyC' && !keys.c){ keys.c = true; toggleCam(); }
   if (k === 'KeyR') respawn();
+  if (k === 'KeyL' && !keys.l){ keys.l = true; toTrain(); }
   if (k === 'KeyH') helpEl.classList.toggle('dim');
   if (k === 'KeyT' && !keys.t){ keys.t = true; setTouch(!touchDevice); }
   if (k === 'KeyX' && !keys.x){ keys.x = true; applySkin(skinIdx + 1); }
   if (k === 'KeyN' && !keys.n){
     keys.n = true;
-    var order = ['day','sunset','neon','comic'];
+    var order = ['day','sunset','neon','comic','generator','mix'];
     setTime(order[(order.indexOf(TIME) + 1) % order.length]);
   }
   if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown'){ e.preventDefault(); keys[k] = true; }
@@ -1682,6 +2253,7 @@ window.addEventListener('keyup', function(e){
   if (k === 'ControlLeft' || k === 'ControlRight') keys.ct = false;
   if (k === 'KeyT') keys.t = false;
   if (k === 'KeyX') keys.x = false;
+  if (k === 'KeyL') keys.l = false;
   if (k === 'KeyN') keys.n = false;
   keys[k] = false;
 });
@@ -1727,14 +2299,14 @@ tapBtn('bM', function(){ if (!inMenu) openMenu(); });
 /* ============================ spawning ============================ */
 var SPAWN = new THREE.Vector3(0, 200, 1650);
 function findSpawn(){
-  var best = null, mid = LEN*0.42, span = LEN*0.10;
+  var best = null, mid = MAP.spawnZ || LEN*0.42, span = 420;
   for (var j=Math.round((mid-span)/CELL); j<=Math.round((mid+span)/CELL); j++){
     for (var i=-6; i<=6; i++){
       var b = buildingAt(i,j);
-      if (b && (!best || b.h > best.h)) best = b;
+      if (b && (!best || b.top > best.top)) best = b;
     }
   }
-  if (best) SPAWN.set(best.cx, LANDY + best.h + 1.2, best.cz);
+  if (best) SPAWN.set(best.cx, best.by + best.h + 1.2, best.cz);
 }
 findSpawn();
 
@@ -1755,7 +2327,7 @@ function respawn(){
     if (b && (!best || b.h > best.h)) best = b;
   }
   if (!best){ toSpawn(); return; }
-  placeAt(best.cx, LANDY + best.h + 1.2, best.cz, Math.sin(yaw)*-6, Math.cos(yaw)*-6);
+  placeAt(best.cx, best.by + best.h + 1.2, best.cz, Math.sin(yaw)*-6, Math.cos(yaw)*-6);
 }
 var splashEl = document.getElementById('splash');
 var splashUntil = 0;
@@ -1770,8 +2342,13 @@ function drown(){
 }
 function checkWater(){
   var h = P[HIPS].p, c = P[CHEST].p;
-  if ((h.y < LANDY + 0.4 && !landAt(h.x, h.z)) ||
-      (c.y < LANDY + 0.4 && !landAt(c.x, c.z)) || h.y < -6) drown();
+  if (MAP.bounds){
+    /* sealed chamber: the floor is solid, so this is only a safety net */
+    if (c.y < MAP.bounds.yBot - 60 || h.y < MAP.bounds.yBot - 60) drown();
+    return;
+  }
+  if ((h.y < LANDY + 0.4 && !hasGround(h.x, h.z)) ||
+      (c.y < LANDY + 0.4 && !hasGround(c.x, c.z)) || h.y < -6) drown();
 }
 
 /* ============================ camera ============================ */
@@ -1857,17 +2434,33 @@ function updateHud(dt){
       if (BOSS.live && BOSS.def){
         bossBarEl.classList.add('on');
         bossNameEl.textContent = BOSS.def.n;
-        bossFillEl.style.width = Math.max(0, BOSS.hp/BOSS.max*100) + '%';
         bossTellEl.textContent = BOSS.def.tell;
-        var need = Math.round(c.distanceTo(bossPos()));
-        modeInfoEl.textContent = 'BOSS ' + (BOSS.i+1) + '/3 · ' + need + 'M · ' +
-          (kph > 45 ? 'FAST ENOUGH TO HURT IT' : 'TOO SLOW — BUILD SPEED');
-        modeInfoEl.style.color = kph > 45 ? '#a8f0b8' : '#ff8a7a';
+        if (BOSS.def.kind === 'hunt'){
+          bossFillEl.style.width = (genLit/GEN_N*100) + '%';
+          bossFillEl.style.background = '#5fd08a';
+          var ng = nearestGen();
+          modeInfoEl.textContent = ng >= 0
+            ? 'BOSS 2/3 · GENERATOR ' + Math.round(ng) + 'M — FOLLOW THE BEAM'
+            : 'BOSS 2/3 · GENERATOR ONLINE';
+          modeInfoEl.style.color = '#a8f0b8';
+        } else {
+          bossFillEl.style.width = Math.max(0, BOSS.hp/BOSS.max*100) + '%';
+          bossFillEl.style.background = '';
+          var need = Math.round(c.distanceTo(bossPos()));
+          modeInfoEl.textContent = 'BOSS ' + (BOSS.i+1) + '/3 · ' + need + 'M · ' +
+            (kph > 35 ? 'FAST ENOUGH TO HURT IT' : 'TOO SLOW — BUILD SPEED');
+          modeInfoEl.style.color = kph > 35 ? '#a8f0b8' : '#ff8a7a';
+        }
       } else {
         bossBarEl.classList.remove('on');
         modeInfoEl.textContent = BOSS.cleared ? 'CITY CLEAR — ALL THREE DOWN' : 'SOMETHING ELSE IS COMING';
         modeInfoEl.style.color = '#ffd9a8';
       }
+    } else if (FLOAT){
+      var td = nearestTrain(c.x, c.z);
+      modeInfoEl.textContent = td >= 0
+        ? 'TRAIN ' + Math.round(td) + 'M — WEB ONTO IT, OR PRESS L' : '';
+      modeInfoEl.style.color = '#9ef4ff';
     } else modeInfoEl.textContent = '';
 
     var st, warn = false;
@@ -1893,11 +2486,11 @@ function pushOut(v, r){
   for (var j=j0-1; j<=j0+1; j++) for (var i=i0-1; i<=i0+1; i++){
     var b = buildingAt(i,j); if (!b) continue;
     if (b.th){
-      if (boxPush(_col, r, b.cx, b.cz, b.w, b.d, b.sh)) moved = true;
-      if (boxPush(_col, r, b.cx, b.cz, b.tw, b.td, b.th)) moved = true;
-    } else if (boxPush(_col, r, b.cx, b.cz, b.w, b.d, b.h)) moved = true;
-    if (b.tank && boxPush(_col, r, b.cx + b.w*0.22, b.cz - b.d*0.2, 2.7, 2.7, b.h + 3.4)) moved = true;
-    if (b.ant && boxPush(_col, r, b.cx, b.cz, 1.0, 1.0, b.h + b.ant)) moved = true;
+      if (boxPush(_col, r, b.cx, b.cz, b.w, b.d, b.sh, b.by)) moved = true;
+      if (boxPush(_col, r, b.cx, b.cz, b.tw, b.td, b.th, b.by)) moved = true;
+    } else if (boxPush(_col, r, b.cx, b.cz, b.w, b.d, b.h, b.by)) moved = true;
+    if (b.tank && boxPush(_col, r, b.cx + b.w*0.22, b.cz - b.d*0.2, 2.7, 2.7, b.h + 3.4, b.by)) moved = true;
+    if (b.ant && boxPush(_col, r, b.cx, b.cz, 1.0, 1.0, b.h + b.ant, b.by)) moved = true;
   }
   return moved;
 }
@@ -1936,7 +2529,8 @@ function makeSwinger(cA, cB, cC, cW, k, eyeCol){
 var _nv = new THREE.Vector3(), _nd = new THREE.Vector3(),
     _nup = new THREE.Vector3(), _nside = new THREE.Vector3(),
     _nfwd = new THREE.Vector3(), _nr = new THREE.Vector3(),
-    _p1 = new THREE.Vector3(), _ext = new THREE.Vector3();
+    _p1 = new THREE.Vector3(), _p2 = new THREE.Vector3(),
+    _p3 = new THREE.Vector3(), _ext = new THREE.Vector3();
 var NDT = 1/60, NSUB = 1/120;
 var NYAW = [0, 0.42, -0.42, 0.90, -0.90], NPITCH = [0.70, 0.42];
 
@@ -2047,7 +2641,9 @@ function hunterStep(){
   stepBody(h.B, h.web, null, 2, 7, NSUB, _ext);
   clampBody(h.B, 38, NSUB);
 
-  if (!landAt(hc.x, hc.z) && hc.y < 3) placeSwinger(h, hc.x, 40, hc.z, 0, 0);
+  var hFloor = MAP.bounds ? MAP.bounds.yBot - 20 : -30;
+  if (hc.y < hFloor) placeSwinger(h, hc.x, 120, hc.z, 0, 0);
+  else if (!MAP.bounds && !landAt(hc.x, hc.z) && hc.y < 3) placeSwinger(h, hc.x, 40, hc.z, 0, 0);
 }
 
 /* ---- HANGOUT: other swingers, each with its own suit ---- */
@@ -2073,7 +2669,7 @@ function npcRespawn(n){
     var b = buildingAt(i,j);
     if (!b || b.h < 24) continue;
     var dir = rand()*Math.PI*2;
-    placeSwinger(n, b.cx, LANDY + b.h + 3, b.cz, Math.cos(dir)*14, Math.sin(dir)*14);
+    placeSwinger(n, b.cx, b.by + b.h + 3, b.cz, Math.cos(dir)*14, Math.sin(dir)*14);
     n.hdg = dir;
     n.grp.visible = true;
     return true;
@@ -2110,7 +2706,8 @@ function npcStep(n){
 
   stepBody(n.B, n.web, null, 2, 7, NSUB, ext);
 
-  if (!landAt(ch.p.x, ch.p.z)) return false;      // out over the river — recycle
+  if (ch.p.y < (MAP.bounds ? MAP.bounds.yBot - 20 : -30)) return false;
+  if (!MAP.bounds && !landAt(ch.p.x, ch.p.z)) return false;   // gone over the water — recycle
   var sp = _nv.subVectors(ch.p, ch.q).length()/NSUB;
   if (sp < 3.0){
     n.stuck += NDT;
@@ -2170,18 +2767,17 @@ function updateSwingers(dt){
 }
 
 /* ---- BOSS mode: three fights. Momentum is your only weapon. ---- */
-var bitGeo = new THREE.BoxGeometry(1,1,1);      /* centred, unlike boxGeo */
 var BOSSDEF = [
-  {n:'THE HEAP',     kind:'heap', hp:100, r:6.2, spd:15, atk:2.4, tell:'IT THROWS RUBBLE — KEEP MOVING'},
-  {n:'THE HUNTER',   kind:'hunt', hp:80,  r:3.0, spd:0,  atk:0,   tell:'IT SWINGS AS FAST AS YOU DO'},
-  {n:'THE ARMATURE', kind:'arm',  hp:105, r:4.6, spd:21, atk:1.7, tell:'IT LUNGES WHEN YOU SLOW DOWN'}
+  {n:'THE HEAP',     kind:'heap', hp:75,  r:6.2, spd:15, atk:3.0, tell:'IT THROWS RUBBLE — KEEP MOVING'},
+  {n:'THE HUNTER',   kind:'hunt', hp:1,   r:3.0, spd:0,  atk:0,   tell:'YOU CAN\'T HURT IT — POWER THE GENERATOR'},
+  {n:'THE ARMATURE', kind:'arm',  hp:80,  r:4.6, spd:21, atk:2.2, tell:'IT LUNGES WHEN YOU SLOW DOWN'}
 ];
 var BOSS = {
   i: -1, def: null, hp: 0, max: 1, live: false, gap: 0, cleared: false,
   pos: new THREE.Vector3(), vel: new THREE.Vector3(),
   t: 0, atk: 0, lunge: 0, hitCool: 0
 };
-var PHP = 100, PHPMAX = 100, hurtT = 0, iFrame = 0;
+var PHP = 120, PHPMAX = 120, hurtT = 0, iFrame = 0;
 
 /* --- the rubble giant --- */
 var heapGrp = new THREE.Group(), heapBits = [];
@@ -2233,6 +2829,89 @@ var armGrp = new THREE.Group(), armLimbs = [];
   armGrp.visible = false; scene.add(armGrp);
 })();
 
+/* --- generators: the only way to bring the Hunter down --- */
+var GEN_N = 1, GENS = [], genLit = 0;
+(function buildGens(){
+  for (var g=0; g<GEN_N; g++){
+    var grp = new THREE.Group();
+    var housing = new THREE.Mesh(bitGeo, new THREE.MeshLambertMaterial({color:0x39414d}));
+    housing.scale.set(3.0, 2.2, 3.0); housing.position.y = 1.1; grp.add(housing);
+    var coilMat = new THREE.MeshBasicMaterial({color:0xff4a3a, fog:false});
+    var coil = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.28, 6, 14), coilMat);
+    coil.position.y = 2.9; coil.rotation.x = Math.PI/2; grp.add(coil);
+    var rod = new THREE.Mesh(cylGeo, new THREE.MeshLambertMaterial({color:0x59636f}));
+    rod.userData.r = 0.26; rod.scale.set(0.26, 3.6, 0.26); rod.position.y = 2.3; grp.add(rod);
+    var beam = new THREE.Mesh(cylGeo, new THREE.MeshBasicMaterial({
+      color:0xff5a3c, transparent:true, opacity:0.16, depthWrite:false,
+      blending:THREE.AdditiveBlending, fog:false}));
+    beam.scale.set(2.4, 340, 2.4); beam.position.y = 172;
+    grp.add(beam);
+    grp.visible = false;
+    scene.add(grp);
+    GENS.push({grp:grp, coil:coil, coilMat:coilMat, beam:beam,
+               pos:new THREE.Vector3(), on:false, flash:0});
+  }
+})();
+function placeGens(){
+  var c = P[CHEST].p;
+  genLit = 0;
+  for (var g=0; g<GEN_N; g++){
+    var G = GENS[g], base = (g/GEN_N)*Math.PI*2 + rand()*0.7, placed = false;
+    for (var a=0; a<30 && !placed; a++){
+      var ang = base + (rand()-0.5)*0.9;
+      var r = 150 + rand()*180;
+      var i = Math.round((c.x + Math.cos(ang)*r)/CELL);
+      var j = Math.round((c.z + Math.sin(ang)*r)/CELL);
+      var b = buildingAt(i,j);
+      if (!b || b.h < (a < 15 ? 45 : 18)) continue;
+      G.pos.set(b.cx, b.by + b.h, b.cz);
+      G.grp.position.copy(G.pos);
+      placed = true;
+    }
+    G.on = !placed;                 /* nowhere to put it? treat it as already done */
+    if (G.on) genLit++;
+    G.flash = 0;
+    G.grp.visible = !G.on;
+    G.beam.visible = !G.on;
+    G.coilMat.color.setHex(0xff4a3a);
+  }
+}
+function hideGens(){
+  for (var g=0; g<GENS.length; g++) GENS[g].grp.visible = false;
+}
+function nearestGen(){
+  var c = P[CHEST].p, best = -1;
+  for (var g=0; g<GENS.length; g++){
+    if (GENS[g].on) continue;
+    var d = c.distanceTo(GENS[g].pos);
+    if (best < 0 || d < best) best = d;
+  }
+  return best;
+}
+function updateGens(dt){
+  var c = P[CHEST].p;
+  for (var g=0; g<GENS.length; g++){
+    var G = GENS[g];
+    if (!G.grp.visible) continue;
+    G.coil.rotation.z += dt * (G.on ? 6 : 1.6);
+    if (G.flash > 0){
+      G.flash -= dt;
+      G.beam.material.opacity = 0.16 + Math.max(0, G.flash)*0.9;
+      if (G.flash <= 0){ G.beam.visible = false; }
+    } else if (!G.on){
+      var pulse = 0.16 + 0.16*(0.5 + 0.5*Math.sin(performance.now()*0.004));
+      G.beam.material.opacity = pulse;
+      if (c.distanceTo(G.pos) < 6.5){          /* touch it to power it */
+        G.on = true; genLit++;
+        G.flash = 0.5;
+        G.coilMat.color.setHex(0x5fffa8);
+        G.beam.material.color.setHex(0x5fffa8);
+        hurtT = 0;
+      }
+    }
+  }
+}
+
 /* --- rubble the Heap throws --- */
 var ROCKS = [];
 (function(){
@@ -2268,22 +2947,22 @@ function stepRocks(dt){
     R.p.addScaledVector(R.v, dt);
     R.m.position.copy(R.p);
     R.m.rotation.x += R.spin*dt; R.m.rotation.y += R.spin*0.7*dt;
-    if (R.p.distanceTo(c) < 2.6 && iFrame <= 0){ hurtPlayer(11, R.v); R.live = false; R.m.visible = false; continue; }
-    var floor = (landAt(R.p.x, R.p.z) ? LANDY : 0);
+    if (R.p.distanceTo(c) < 2.6 && iFrame <= 0){ hurtPlayer(8, R.v); R.live = false; R.m.visible = false; continue; }
+    var floor = MAP.bounds ? MAP.bounds.yBot : (hasGround(R.p.x, R.p.z) ? LANDY : -40);
     if (R.p.y < floor || pushOut(R.p, 0.5)){ R.live = false; R.m.visible = false; }
   }
 }
 
 function hurtPlayer(amount, dirV){
   if (iFrame > 0) return;
-  PHP -= amount; iFrame = 0.85; hurtT = 0.45;
+  PHP -= amount; iFrame = 1.15; hurtT = 0.45;
   if (dirV){
     _nd.copy(dirV); _nd.y = Math.abs(_nd.y) + 6;
     if (_nd.lengthSq() > 1e-6){ _nd.normalize().multiplyScalar(16); addImpulse(P, _nd, SUB); }
   }
   if (PHP <= 0){
     PHP = PHPMAX;
-    BOSS.hp = Math.min(BOSS.max, BOSS.hp + BOSS.max*0.12);
+    BOSS.hp = Math.min(BOSS.max, BOSS.hp + BOSS.max*0.08);
     splashEl.classList.add('on'); splashUntil = performance.now() + 650;
     toSpawn();
     if (BOSS.def && BOSS.def.kind === 'hunt') hunterReset();
@@ -2309,8 +2988,8 @@ function bossStart(i){
   heapGrp.visible = (BOSS.def.kind === 'heap');
   armGrp.visible  = (BOSS.def.kind === 'arm');
   HUNT.grp.visible = (BOSS.def.kind === 'hunt');
-  if (BOSS.def.kind === 'hunt'){ hunterReset(); HUNT.grace = 1.5; }
-  else bossPlace();
+  if (BOSS.def.kind === 'hunt'){ hunterReset(); HUNT.grace = 2.5; placeGens(); }
+  else { bossPlace(); hideGens(); }
 }
 function bossPos(){
   return (BOSS.def && BOSS.def.kind === 'hunt') ? HUNT.B[CHEST].p : BOSS.pos;
@@ -2327,7 +3006,8 @@ function bossMove(){
   BOSS.vel.lerp(_p1, 1 - Math.exp(-NDT*1.9));
   BOSS.pos.addScaledVector(BOSS.vel, NDT);
   pushOut(BOSS.pos, d.r*0.5);
-  var floor = (landAt(BOSS.pos.x, BOSS.pos.z) ? LANDY : 0) + d.r*0.5;
+  var floor = MAP.bounds ? (MAP.bounds.yBot + d.r*0.5 + 1)
+            : ((hasGround(BOSS.pos.x, BOSS.pos.z) ? LANDY : -40) + d.r*0.5);
   if (BOSS.pos.y < floor) BOSS.pos.y = floor;
 }
 function bossDraw(dt){
@@ -2374,10 +3054,27 @@ function bossCombat(dt){
 
   if (BOSS.hitCool > 0) BOSS.hitCool -= dt;
 
+  if (d.kind === 'hunt'){
+    /* no amount of speed hurts this one — the generators do */
+    if (dist < d.r + 1.6 && BOSS.hitCool <= 0){
+      _p1.subVectors(c, bp);
+      if (_p1.lengthSq() < 1e-6) _p1.set(0,1,0);
+      BOSS.hitCool = 0.5;
+      hurtPlayer(11, _p1);          /* hurtPlayer applies the knockback itself */
+    }
+    BOSS.hp = BOSS.max * (1 - genLit/GEN_N);
+    if (genLit >= GEN_N){
+      BOSS.hp = 0; BOSS.live = false; BOSS.gap = 3.0;
+      HUNT.grp.visible = false; HUNT.strand.visible = false;
+      hideGens();
+    }
+    return;
+  }
+
   if (dist < d.r + 1.6){
-    if (kmh > 45 && BOSS.hitCool <= 0){
+    if (kmh > 35 && BOSS.hitCool <= 0){
       /* a fast body-slam is the whole combat system */
-      var dmg = clamp((kmh - 30)/5, 5, 30);
+      var dmg = clamp((kmh - 20)/4, 8, 36);
       BOSS.hp -= dmg;
       BOSS.hitCool = 0.45;
       hurtT = 0.18;
@@ -2391,8 +3088,8 @@ function bossCombat(dt){
         BOSS.hp = 0; BOSS.live = false; BOSS.gap = 3.0;
         heapGrp.visible = armGrp.visible = HUNT.grp.visible = false;
       }
-    } else if (kmh <= 45){
-      hurtPlayer(d.kind === 'hunt' ? 16 : 13, BOSS.vel);
+    } else if (kmh <= 35){
+      hurtPlayer(d.kind === 'hunt' ? 11 : 9, BOSS.vel);
     }
   }
 
@@ -2424,6 +3121,7 @@ function updateBoss(dt){
   while (bossAcc >= NDT && steps < 3){ bossAcc -= NDT; steps++; bossMove(); }
   if (bossAcc > 0.25) bossAcc = 0;
 
+  if (BOSS.def && BOSS.def.kind === 'hunt') updateGens(dt);
   bossCombat(dt);
   stepRocks(dt);
   bossDraw(dt);
@@ -2434,6 +3132,7 @@ function bossReset(){
   PHP = PHPMAX; iFrame = 2.0; hurtT = 0;
   for (var i=0; i<ROCKS.length; i++){ ROCKS[i].live = false; ROCKS[i].m.visible = false; }
   heapGrp.visible = armGrp.visible = false;
+  hideGens();
 }
 
 /* ---- menu ---- */
@@ -2451,7 +3150,7 @@ function openMenu(){
   menuEl.classList.remove('hide');
   figure.visible = false;
   HUNT.grp.visible = false;
-  heapGrp.visible = false; armGrp.visible = false;
+  heapGrp.visible = false; armGrp.visible = false; hideGens();
   bossBarEl.classList.remove('on');
   hurtEl.style.opacity = 0;
   document.body.classList.remove('fighting');
@@ -2478,7 +3177,7 @@ function startMode(m){
   bossBarEl.classList.remove('on');
   hurtEl.style.opacity = 0;
   if (m === 'boss') bossReset();
-  else { BOSS.live = false; BOSS.def = null; heapGrp.visible = armGrp.visible = false;
+  else { BOSS.live = false; BOSS.def = null; heapGrp.visible = armGrp.visible = false; hideGens();
          for (var rk=0; rk<ROCKS.length; rk++){ ROCKS[rk].live = false; ROCKS[rk].m.visible = false; } }
   modeInfoEl.textContent = '';
   acc = 0; prev = performance.now();
@@ -2514,7 +3213,7 @@ function setTime(t){
 })();
 
 /* ============================ loop ============================ */
-var acc = 0, prev = performance.now(), hideHelp = performance.now() + 15000, wt = 0;
+var acc = 0, prev = performance.now(), hideHelp = performance.now() + 15000;
 toSpawn();
 resize();
 applyTime(TIME);
@@ -2552,12 +3251,25 @@ function frame(now){
   if (inMenu){ menuCamera(dt); cx = camera.position.x; cz = camera.position.z; }
   else { cx = P[HIPS].p.x; cz = P[HIPS].p.z; }
 
+  WORLDT += dt;
+  var wasFloat = FLOAT;
+  if (MAP.mixed){
+    var RG = subForZ(inMenu ? SPAWN.z : P[CHEST].p.z);
+    FLOAT = !!(RG && MAPS[RG.src].floating);
+  } else FLOAT = !!MAP.floating;
+  if (FLOAT !== wasFloat){ setBeams(FLOAT); setTrains(FLOAT); }
   var ci = Math.round(cx/CELL), cj = Math.round(cz/CELL);
-  if (ci !== lastCell.i || cj !== lastCell.j){
+  if (FLOAT || MAP.mixed){
+    /* the chunks are drifting, so their instance matrices are stale every frame */
+    lastCell.i = ci; lastCell.j = cj;
+    rebuildCity(ci, cj);
+  } else if (ci !== lastCell.i || cj !== lastCell.j){
     lastCell.i = ci; lastCell.j = cj;
     rebuildCity(ci, cj);
   }
   updateCars(dt, cx, cz);
+  updateTrains(dt, cx, inMenu ? 260 : P[CHEST].p.y, cz);
+  if (FLOAT) updateBeams(dt, cx, inMenu ? camera.position.y : P[CHEST].p.y, cz);
 
   wt += dt;
   if (MAP.beacons){                    /* aviation lights, two groups out of phase */
