@@ -160,6 +160,19 @@
         "Desktop"
       ],
       "applicationCategory": "Game"
+    },
+    {
+      "@type": "VideoGame",
+      "position": 10,
+      "name": "DEEPFIELD",
+      "url": "https://chatstupidity.com/deepfield.html",
+      "image": "https://chatstupidity.com/img/deepfield.png",
+      "description": "Explore a deformable snowfield where every footstep changes the terrain, packed trails alter movement, and gravity can switch between Moon and Earth.",
+      "gamePlatform": [
+        "Web Browser",
+        "Desktop"
+      ],
+      "applicationCategory": "Game"
     }    
   ]
 }
@@ -318,6 +331,7 @@ header{
 .grabpack{background:linear-gradient(135deg,#9B5DE5,#F15BB5);}
 .sling{background:linear-gradient(135deg,#FF8A3D,#7A5CFF);}
 .liminal{background:linear-gradient(135deg,#B8E6FF,#9BF57A);}
+.deepfield{background:linear-gradient(135deg,#DFF6FF,#7DB7D8);}
 
 .badge{
   position:absolute;
@@ -773,6 +787,45 @@ footer{
 
 <section class="games" id="games">
 
+  <a href="deepfield.html"
+    class="card large deepfield"
+    onclick="trackGameClick('DEEPFIELD')">
+
+    <div class="badge">LEAVE A MARK</div>
+
+    <div class="card-content">
+
+      <img
+        class="game-image"
+        src="img/deepfield.png"
+        alt="DEEPFIELD">
+
+      <h2>DEEPFIELD</h2>
+
+      <p>
+        Every step changes the snow.
+        Pack your own trail, switch gravity,
+        and make the Moon regret giving you boots.
+      </p>
+
+      <div class="play">
+        Enter The Field →
+      </div>
+
+      <div
+        class="share-game-button"
+        role="button"
+        tabindex="0"
+        aria-label="Share DEEPFIELD"
+        onclick="openShareMenu(event, 'deepfield')"
+        onkeydown="handleShareKey(event, 'deepfield')">
+        SHARE GAME ↗
+      </div>
+
+    </div>
+
+  </a>
+
   <a href="liminal.html"
     class="card large liminal"
     onclick="trackGameClick('liminal')">
@@ -1210,7 +1263,12 @@ const gameShareData = {
     title: "Asteroid Blaster",
     description: "Dodge space rocks. Blast everything. Panic responsibly.",
     image: "img/asteroid_blaster.png"
-  }
+  },
+  deepfield: {
+    title: "DEEPFIELD",
+    description: "Every step changes the snow. Pack your own trail, switch gravity, and make the Moon regret giving you boots.",
+    image: "img/deepfield.png"
+  },
 };
 
 let currentShareGame = null;

@@ -1,0 +1,3922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<title>Deep Field — Snow Traverse</title>
+<style>
+  :root{
+    --ink:#0a0f1c;
+    --frost:#e8f1ff;
+    --dim:#8fa6c9;
+    --glow:#8fd4ff;
+    --amber:#ffc45c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#02040a;color:var(--frost);
+    font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  canvas{display:block;position:fixed;inset:0;touch-action:none;z-index:0}
+  html,body{overscroll-behavior:none;-webkit-user-select:none;user-select:none;
+    -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+
+  .panel{
+    background:rgba(8,14,26,.62);
+    border:1px solid rgba(143,212,255,.16);
+    border-radius:14px;
+    backdrop-filter:blur(14px) saturate(120%);
+    -webkit-backdrop-filter:blur(14px) saturate(120%);
+  }
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:4;transition:opacity .6s ease}
+  #hud.on{opacity:1}
+
+  #telemetry{
+    position:absolute;left:22px;bottom:22px;padding:14px 18px 15px;min-width:232px;
+  }
+  #telemetry h2{
+    font-size:10.5px;font-weight:600;letter-spacing:.14em;color:var(--dim);
+    margin-bottom:10px;text-transform:uppercase;
+  }
+  .row{display:flex;justify-content:space-between;align-items:baseline;gap:18px;
+    font-size:12.5px;line-height:1.9;color:#cddcf2}
+  .row b{font-weight:600;color:var(--frost);font-variant-numeric:tabular-nums}
+  .bar{height:3px;border-radius:2px;background:rgba(143,212,255,.14);margin-top:9px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#5fb8ff,#d8efff);
+    transition:width .12s linear}
+  .bar i.blue{background:linear-gradient(90deg,#4a7cff,#a8d8ff)}
+
+  #reticle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:22px;height:22px;border-radius:50%;
+    border:1px solid rgba(159,216,255,.28);display:flex;align-items:center;justify-content:center;
+    transition:border-color .18s,transform .18s}
+  #reticle i{width:3px;height:3px;border-radius:50%;background:rgba(159,216,255,.5);
+    transition:background .18s,transform .18s}
+  #reticle.live{border-color:rgba(159,216,255,.9);transform:translate(-50%,-50%) scale(1.3)}
+  #reticle.live i{background:#dff0ff;transform:scale(1.6)}
+
+  #compass{
+    position:absolute;top:20px;left:50%;transform:translateX(-50%);
+    padding:7px 20px;font-size:11.5px;letter-spacing:.22em;color:#bed4ef;
+    font-variant-numeric:tabular-nums;
+  }
+
+  #keys{
+    position:absolute;right:22px;bottom:22px;padding:14px 18px;font-size:12px;color:#b9cce8;
+    line-height:2;max-width:250px;
+  }
+  #keys span{display:inline-block;min-width:62px;color:var(--glow);font-weight:600}
+  #keys .hint{color:var(--dim);font-size:11px;margin-top:8px;line-height:1.55}
+
+  #warn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    font-size:13px;letter-spacing:.16em;color:var(--amber);opacity:0;transition:opacity .35s}
+  #warn.on{opacity:1}
+
+  /* ---------- Boot / menu ---------- */
+  #veil{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:26px;z-index:10;
+    background:radial-gradient(120% 80% at 50% 30%,#0d1b33 0%,#04070f 55%,#01030a 100%);
+    transition:opacity .8s ease}
+  #veil.gone{opacity:0;pointer-events:none}
+  #veil h1{
+    font-size:clamp(30px,7vw,62px);font-weight:200;letter-spacing:.30em;
+    text-indent:.30em;color:#eaf4ff;
+    text-shadow:0 0 34px rgba(120,190,255,.45);
+  }
+  #veil .sub{font-size:12.5px;letter-spacing:.30em;color:#7b93b8;margin-top:-14px}
+  #loadwrap{width:min(420px,72vw)}
+  #loadbar{height:2px;background:rgba(143,212,255,.16);border-radius:2px;overflow:hidden}
+  #loadbar i{display:block;height:100%;width:0%;
+    background:linear-gradient(90deg,#3f8fd8,#bfe6ff);transition:width .25s ease}
+  #loadtxt{margin-top:11px;font-size:11px;letter-spacing:.18em;color:#6f87ac;text-align:center}
+  #enter{
+    pointer-events:auto;cursor:pointer;border:1px solid rgba(143,212,255,.4);
+    background:rgba(143,212,255,.07);color:#eaf4ff;border-radius:999px;
+    padding:15px 44px;font-size:12.5px;letter-spacing:.24em;font-family:inherit;
+    transition:background .25s,border-color .25s,transform .25s;opacity:0;
+  }
+  #enter.ready{opacity:1}
+  #enter:hover{background:rgba(143,212,255,.16);border-color:rgba(143,212,255,.7);transform:translateY(-1px)}
+  #enter:focus-visible{outline:2px solid var(--glow);outline-offset:4px}
+
+  #settings{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:520px;opacity:0;transition:opacity .5s}
+  #settings.ready{opacity:1}
+  .chip{pointer-events:auto;cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:.12em;
+    color:#9fb6d6;border:1px solid rgba(143,212,255,.2);background:transparent;
+    padding:8px 15px;border-radius:999px;transition:.2s}
+  .chip:hover{color:#eaf4ff;border-color:rgba(143,212,255,.5)}
+  .chip.sel{color:#04070f;background:#bfe6ff;border-color:#bfe6ff;font-weight:600}
+
+  #bossbar{position:absolute;top:52px;left:50%;transform:translateX(-50%);width:min(460px,72vw);
+    opacity:0;transition:opacity .4s}
+  #bossbar.on{opacity:1}
+  #bossbar .bname{font-size:10.5px;letter-spacing:.22em;color:#cfe2fb;margin-bottom:6px;text-align:center}
+  #bossbar .bname em{font-style:normal;color:#7f97ba;margin-left:8px}
+  #bossbar .bfill{height:5px;border-radius:3px;background:rgba(10,18,32,.7);
+    border:1px solid rgba(159,216,255,.22);overflow:hidden}
+  #bossbar .bfill i{display:block;height:100%;width:100%;
+    background:linear-gradient(90deg,#6fe0ff,#9fb8ff);transition:width .2s}
+
+  #dock{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
+    display:flex;flex-direction:column;align-items:center;gap:9px}
+  #vitals{width:250px;height:4px;border-radius:3px;background:rgba(10,18,32,.65);
+    border:1px solid rgba(159,216,255,.18);overflow:hidden}
+  #vitals i{display:block;height:100%;width:100%;
+    background:linear-gradient(90deg,#8ff0c8,#d9fff0);transition:width .25s}
+  #abilities{display:flex;gap:7px}
+  .ab{position:relative;overflow:hidden;padding:7px 11px 6px;border-radius:10px;
+    background:rgba(8,14,26,.6);border:1px solid rgba(143,212,255,.16);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);text-align:center;min-width:52px}
+  .ab b{display:block;font-size:11px;font-weight:600;color:#dff0ff;letter-spacing:.06em}
+  .ab span{display:block;font-size:9.5px;color:#8fa6c9;margin-top:1px}
+  .ab i{position:absolute;inset:0;background:rgba(4,8,16,.72);transform-origin:bottom;
+    transform:scaleY(0);transition:transform .1s linear}
+
+  #flash{position:absolute;inset:0;opacity:0;pointer-events:none;
+    background:radial-gradient(120% 80% at 50% 50%,transparent 35%,rgba(190,60,70,.55) 100%);
+    transition:opacity .25s}
+
+  #touch{display:none}
+  #touch.on{display:block;position:fixed;inset:0;z-index:6;pointer-events:none}
+  #stick{position:absolute;left:26px;bottom:26px;width:118px;height:118px;border-radius:50%;
+    border:1px solid rgba(159,216,255,.22);background:rgba(8,14,26,.35);pointer-events:none}
+  #stick i{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;
+    border-radius:50%;background:rgba(180,220,255,.28);border:1px solid rgba(200,235,255,.45);
+    transition:background .15s,border-color .15s}
+  #stick.fast{border-color:rgba(159,216,255,.75)}
+  #stick.fast i{background:rgba(180,225,255,.55);border-color:rgba(230,245,255,.9)}
+  .tb.lit{background:rgba(159,216,255,.45);color:#06101f;font-weight:700}
+  #zoombar{position:absolute;left:14px;top:50%;transform:translateY(-50%);
+    display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+  .zb{pointer-events:auto;font-family:inherit;font-size:22px;line-height:1;font-weight:300;
+    color:#eaf6ff;background:rgba(8,14,26,.62);border:1px solid rgba(143,212,255,.30);
+    border-radius:50%;width:50px;height:50px;padding:0;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  .zb:active{background:rgba(159,216,255,.42);transform:scale(0.94)}
+  .zlevel{width:5px;height:96px;border-radius:3px;background:rgba(10,18,32,.6);
+    border:1px solid rgba(143,212,255,.20);overflow:hidden;display:flex;align-items:flex-end}
+  .zlevel i{display:block;width:100%;height:50%;
+    background:linear-gradient(180deg,#bfe6ff,#4a8fd8);transition:height .12s linear}
+
+  #tbtns{position:absolute;right:12px;bottom:14px;
+    display:flex;flex-direction:column;gap:7px;align-items:flex-end}
+  .trow{display:flex;gap:7px;justify-content:flex-end}
+  .tb{pointer-events:auto;font-family:inherit;font-size:10px;letter-spacing:.08em;
+    color:#dff0ff;background:rgba(8,14,26,.62);border:1px solid rgba(143,212,255,.24);
+    border-radius:999px;padding:12px 13px;-webkit-user-select:none;user-select:none;
+    -webkit-tap-highlight-color:transparent;backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);min-width:58px;text-align:center}
+  .tb.sm{padding:10px 11px;font-size:9.5px;min-width:54px}
+  .tb.big{padding:17px 19px;font-size:11.5px;background:rgba(159,216,255,.18)}
+  .tb.lift{background:rgba(90,150,255,.20)}
+  .tb.hurl{background:rgba(143,212,255,.14)}
+  .tb.corner{position:absolute;right:12px;top:12px;padding:9px 14px;font-size:10px}
+  .tb:active{background:rgba(159,216,255,.38);transform:scale(0.96)}
+
+  #menu{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;
+    background:rgba(2,5,12,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #menu.on{display:flex}
+  .mpanel{width:min(520px,90vw);padding:26px 28px 22px;pointer-events:auto}
+  .mpanel h3{font-size:12px;font-weight:600;letter-spacing:.2em;color:#9fb6d6;margin-bottom:18px}
+  .mrow{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:9px 0;border-top:1px solid rgba(143,212,255,.10)}
+  .mrow label{font-size:12.5px;color:#cddcf2}
+  .opts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .mhelp{margin:16px 0 18px;font-size:11px;line-height:1.85;color:#7f97ba}
+  .chip.wide{width:100%;padding:12px}
+
+  #err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+    padding:40px;text-align:center;font-size:14px;line-height:1.7;color:#ffb3b3;z-index:20;
+    background:#04070f}
+
+  @media (max-width:900px){
+    #keys{display:none}
+    #telemetry{display:none}
+    #dock{bottom:auto;top:86px}
+    #abilities{display:none}
+    #vitals{width:150px}
+    #bossbar{top:46px;width:min(280px,62vw)}
+    #compass{top:14px;left:14px;transform:none;font-size:9.5px;letter-spacing:.12em;
+      padding:6px 11px;white-space:nowrap}
+    .mpanel{padding:18px 16px 16px}
+    .mrow{padding:7px 0}
+    .mrow label{font-size:12px}
+    .chip{padding:9px 12px}
+    #telemetry{left:14px;bottom:14px;min-width:190px;padding:11px 14px}
+    #compass{font-size:10px;padding:6px 14px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition-duration:.01ms !important}
+  }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div id="compass" class="panel">HDG 000 &nbsp;·&nbsp; GRID 0.0 / 0.0</div>
+
+  <div id="telemetry" class="panel">
+    <h2>Suit telemetry</h2>
+    <div class="row"><span>Ground speed</span><b id="tSpeed">0.00 m/s</b></div>
+    <div class="row"><span>Sink depth</span><b id="tSink">0 cm</b></div>
+    <div class="row"><span>Snow under boot</span><b id="tPack">powder</b></div>
+    <div class="bar"><i id="tPackBar"></i></div>
+    <div class="row" style="margin-top:6px"><span>Snow held</span><b id="tMass">empty</b></div>
+    <div class="bar"><i id="tMassBar" class="blue"></i></div>
+    <div class="row" style="margin-top:6px"><span>Dash</span><b id="tDash">ready</b></div>
+    <div class="row"><span>Steps logged</span><b id="tSteps">0</b></div>
+    <div class="row"><span>Gravity</span><b id="tGrav">1.62 m/s²</b></div>
+  </div>
+
+  <div id="reticle"><i></i></div>
+
+  <div id="keys" class="panel">
+    <div><span>W A S D</span>traverse</div>
+    <div><span>Shift</span>push hard</div>
+    <div><span>C</span>sled</div>
+    <div><span>Q</span>dash</div>
+    <div><span>Space</span>hop</div>
+    <div><span>Right drag</span>lift snow</div>
+    <div><span>Left click</span>hurl it</div>
+    <div><span>X</span>slam it down</div>
+    <div><span>hold K</span>snow vortex</div>
+    <div><span>J</span>ice spikes</div>
+    <div><span>hold F</span>rewind snow</div>
+    <div class="hint">Keys instead of mouse: G lifts, E hurls. V helmet view, L lamp,
+      N snowfall, + and - zoom. Gravity, sky and figure live in this menu.
+      On a phone: drag the left half to walk, drag the right half to look,
+      pinch with two fingers on the right to zoom, RUN latches a sprint.</div>
+    <div class="hint">Packed tracks carry you faster than fresh powder. Sled lines pack hardest.</div>
+  </div>
+
+  <div id="warn"></div>
+
+  <div id="bossbar">
+    <div class="bname">RIME COLOSSUS <em id="bwave">WAVE 1</em></div>
+    <div class="bfill"><i id="bhp"></i></div>
+  </div>
+
+  <div id="dock">
+    <div id="vitals"><i id="hpfill"></i></div>
+    <div id="abilities">
+      <div class="ab" data-k="dash"><b>Q</b><span>dash</span><i></i></div>
+      <div class="ab" data-k="shock"><b>R</b><span>blast</span><i></i></div>
+      <div class="ab" data-k="pillar"><b>T</b><span>pillar</span><i></i></div>
+      <div class="ab" data-k="wall"><b>Z</b><span>wall</span><i></i></div>
+      <div class="ab" data-k="vortex"><b>K</b><span>vortex</span><i></i></div>
+      <div class="ab" data-k="spikes"><b>J</b><span>spikes</span><i></i></div>
+      <div class="ab" data-k="rewind"><b>F</b><span>rewind</span><i></i></div>
+      <div class="ab" data-k="lift"><b>RMB</b><span>lift</span><i></i></div>
+      <div class="ab" data-k="hurl"><b>LMB</b><span>hurl</span><i></i></div>
+    </div>
+  </div>
+
+  <div id="flash"></div>
+</div>
+
+<div id="touch">
+  <div id="stick"><i></i></div>
+  <button class="tb corner" data-a="menu">MENU</button>
+  <div id="zoombar">
+    <button class="zb" data-z="in">+</button>
+    <div class="zlevel"><i id="zfill"></i></div>
+    <button class="zb" data-z="out">&minus;</button>
+  </div>
+  <div id="tbtns">
+    <div class="trow">
+      <button class="tb sm" data-a="rewind">REW</button>
+      <button class="tb sm" data-a="spikes">SPIKE</button>
+      <button class="tb sm" data-a="vortex">VORTEX</button>
+    </div>
+    <div class="trow">
+      <button class="tb sm" data-a="blast">BLAST</button>
+      <button class="tb sm" data-a="pillar">PILLAR</button>
+      <button class="tb sm" data-a="wall">WALL</button>
+    </div>
+    <div class="trow">
+      <button class="tb sm" data-a="run">RUN</button>
+      <button class="tb sm" data-a="sled">SLED</button>
+      <button class="tb sm" data-a="dash">DASH</button>
+
+    </div>
+    <div class="trow">
+      <button class="tb sm" data-a="slam">SLAM</button>
+      <button class="tb lift" data-a="lift">LIFT</button>
+      <button class="tb hurl" data-a="hurl">HURL</button>
+      <button class="tb big" data-a="jump">JUMP</button>
+    </div>
+  </div>
+</div>
+
+<div id="menu">
+  <div class="mpanel panel">
+    <h3>Field options</h3>
+    <div class="mrow"><label>Boss mode</label><span class="opts" data-g="boss">
+      <button class="chip" data-v="off">Off</button><button class="chip" data-v="on">Colossus</button></span></div>
+    <div class="mrow"><label>Figure</label><span class="opts" data-g="skin">
+      <button class="chip" data-v="astro">EVA suit</button>
+      <button class="chip" data-v="wander">Wanderer</button></span></div>
+    <div class="mrow"><label>Sky</label><span class="opts" data-g="sky">
+      <button class="chip" data-v="space">Deep field</button>
+      <button class="chip" data-v="day">Daylight</button></span></div>
+    <div class="mrow"><label>Gravity</label><span class="opts" data-g="grav">
+      <button class="chip" data-v="moon">Moon</button><button class="chip" data-v="earth">Earth</button></span></div>
+    <div class="mrow"><label>Snowfall</label><span class="opts" data-g="snow">
+      <button class="chip" data-v="0">Clear</button><button class="chip" data-v="1">Light</button>
+      <button class="chip" data-v="2">Heavy</button></span></div>
+    <div class="mrow"><label>Bloom</label><span class="opts" data-g="bloom">
+      <button class="chip" data-v="low">Subtle</button><button class="chip" data-v="high">Full</button></span></div>
+    <div class="mrow"><label>Detail</label><span class="opts" data-g="qual">
+      <button class="chip" data-v="low">Low</button><button class="chip" data-v="high">High</button>
+      <button class="chip" data-v="ultra">Ultra</button></span></div>
+    <div class="mrow"><label>Snow record</label><span class="opts">
+      <button class="chip" id="mreset">Smooth the field</button></span></div>
+    <p class="mhelp">W A S D move · Shift sprint · Space hop · C sled · Q dash ·
+      R blast · T pillar · Z wall · J spikes · hold K vortex · hold F rewind ·
+      right-drag lift · left-click hurl · X slam ·
+      V helmet view · L lamp · B colossus · H this menu</p>
+    <button id="mclose" class="chip wide">Back to the field</button>
+  </div>
+</div>
+
+<div id="veil">
+  <h1>DEEP FIELD</h1>
+  <div class="sub">SNOW TRAVERSE · EVA-07</div>
+  <div id="loadwrap">
+    <div id="loadbar"><i></i></div>
+    <div id="loadtxt">warming the optics</div>
+  </div>
+  <div id="settings">
+    <button class="chip" data-q="low">Low detail</button>
+    <button class="chip sel" data-q="high">High detail</button>
+    <button class="chip" data-q="ultra">Ultra</button>
+  </div>
+  <button id="enter">BEGIN TRAVERSE</button>
+</div>
+
+<div id="err">
+  <div>
+    Three.js could not load.<br>
+    This page needs a network connection the first time it opens.<br>
+    Reload once you're online.
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+if (typeof THREE === 'undefined') {
+  document.getElementById('err').style.display = 'flex';
+  document.getElementById('veil').style.display = 'none';
+} else {
+(function () {
+'use strict';
+
+/* ============================================================
+   0. CONFIG
+   ============================================================ */
+var QUALITY = {
+  low:   { defRes: 512,  ss: 1.0,  flakes: 5000,  shadow: 1024, tileStep: 0.45, cube: 0 },
+  high:  { defRes: 1024, ss: 1.15, flakes: 16000, shadow: 2048, tileStep: 0.30, cube: 1 },
+  ultra: { defRes: 2048, ss: 1.35, flakes: 28000, shadow: 2048, tileStep: 0.24, cube: 1 }
+};
+var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
+var isPhone = isTouch && Math.min(screen.width, screen.height) < 820;
+var qKey = isPhone ? 'low' : 'high';
+try {
+  var savedQ = localStorage.getItem('df_quality');
+  if (savedQ && QUALITY[savedQ]) qKey = savedQ;
+} catch (e) { /* storage blocked */ }
+var Q = QUALITY[qKey];
+
+var REGION   = 180;      // metres across the deformable survey zone
+var HALF     = REGION / 2;
+var MAX_DEPTH= 0.55;     // metres the snow can be carved down
+var RIM_H    = 1.40;     // metres snow can be piled up
+var SINK_MAX = 0.24;     // how far boots settle into virgin powder
+var G_MOON   = 1.62, G_EARTH = 9.81;
+
+var SUN_DIR = new THREE.Vector3(-0.42, 0.30, -0.86).normalize();
+
+/* ============================================================
+   1. MATHS + VALUE NOISE (single source of truth, CPU only)
+   ============================================================ */
+var PERM = new Uint8Array(512);
+(function () {
+  var p = new Uint8Array(256), i, j, t, s = 1337;
+  function rnd() { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }
+  for (i = 0; i < 256; i++) p[i] = i;
+  for (i = 255; i > 0; i--) { j = (rnd() * (i + 1)) | 0; t = p[i]; p[i] = p[j]; p[j] = t; }
+  for (i = 0; i < 512; i++) PERM[i] = p[i & 255];
+})();
+
+function grad2(ix, iz) {
+  var h = (Math.imul(ix, 374761393) + Math.imul(iz, 668265263)) | 0;
+  h = Math.imul(h ^ (h >> 13), 1274126177);
+  return ((h ^ (h >> 16)) >>> 0) / 4294967296;
+}
+function vnoise(x, z) {
+  var ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz;
+  var ux = fx * fx * (3 - 2 * fx), uz = fz * fz * (3 - 2 * fz);
+  var a = grad2(ix, iz), b = grad2(ix + 1, iz), c = grad2(ix, iz + 1), d = grad2(ix + 1, iz + 1);
+  return (a * (1 - ux) + b * ux) * (1 - uz) + (c * (1 - ux) + d * ux) * uz;
+}
+function fbm(x, z, oct, lac, gain) {
+  var amp = 1, f = 1, sum = 0, norm = 0;
+  for (var i = 0; i < oct; i++) {
+    sum += amp * vnoise(x * f, z * f);
+    norm += amp; amp *= gain; f *= lac;
+  }
+  return sum / norm;
+}
+
+/* Terrain elevation — dunes, wind ridges, drift ripples. */
+function terrainNoise(x, z) {
+  var h = 0;
+  h += (fbm(x * 0.0075, z * 0.0075, 4, 2.1, 0.5) - 0.5) * 13.0;   // long dunes
+  h += (fbm(x * 0.019 - 12, z * 0.019 + 7, 3, 2.2, 0.5) - 0.5) * 4.4; // swales
+  h += (fbm(x * 0.031 + 40, z * 0.031, 3, 2.3, 0.5) - 0.5) * 2.2; // drift banks
+  h += (fbm(x * 0.098 + 3, z * 0.098 - 8, 2, 2.0, 0.5) - 0.5) * 0.50; // wind waves
+  h += (fbm(x * 0.26 + 90, z * 0.26, 2, 2.0, 0.5) - 0.5) * 0.16;  // sastrugi ripples
+  // wind-carved ridge lines
+  var r = fbm(x * 0.018 - 20, z * 0.018 + 60, 3, 2.0, 0.5);
+  h += (1.0 - Math.abs(r * 2 - 1)) * 0.9;
+  // flatten the landing site
+  var d = Math.sqrt(x * x + z * z);
+  var flat = 1 - Math.exp(-d * d / (13 * 13));
+  return h * (0.42 + 0.58 * flat);
+}
+
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function damp(a, b, l, dt) { return lerp(a, b, 1 - Math.exp(-l * dt)); }
+
+/* ============================================================
+   2. RENDERER / SCENE
+   ============================================================ */
+var renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', stencil: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isPhone ? 1.5 : 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputEncoding = THREE.LinearEncoding;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+var scene = new THREE.Scene();
+var FOG_COLOR = new THREE.Color(0x1b2a48);
+scene.fog = new THREE.FogExp2(0x1b2a48, 0.0042);
+
+var camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 6000);
+camera.position.set(0, 3, 6);
+
+var SKY_COL    = new THREE.Color(0x3f6398);
+var GROUND_COL = new THREE.Color(0x2a3a5e);
+var SUN_COL    = new THREE.Color(0xfff2e2);
+
+var hemi = new THREE.HemisphereLight(0x5d7dba, 0x1e2a45, 0.40);
+scene.add(hemi);
+
+var sun = new THREE.DirectionalLight(0xfff1dd, 1.45);
+sun.castShadow = true;
+sun.shadow.mapSize.set(Q.shadow, Q.shadow);
+sun.shadow.camera.left = -24; sun.shadow.camera.right = 24;
+sun.shadow.camera.top = 24;   sun.shadow.camera.bottom = -24;
+sun.shadow.camera.near = 1;   sun.shadow.camera.far = 120;
+sun.shadow.bias = -0.0006;
+sun.shadow.normalBias = 0.035;
+scene.add(sun);
+scene.add(sun.target);
+
+var bounce = new THREE.DirectionalLight(0x9ec4ff, 0.22);
+bounce.position.set(0.6, -0.4, 0.5);
+scene.add(bounce);
+
+/* ============================================================
+   3. SKY, STARS, AURORA
+   ============================================================ */
+var skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: { uTime: { value: 0 }, uSun: { value: SUN_DIR.clone() }, uMode: { value: 0 } },
+  vertexShader: [
+    'varying vec3 vDir;',
+    'void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }'
+  ].join('\n'),
+  fragmentShader: [
+    'precision highp float;',
+    'varying vec3 vDir; uniform float uTime, uMode; uniform vec3 uSun;',
+    'float h21(vec2 p){ p=fract(p*vec2(127.31,311.7)); p+=dot(p,p+34.23); return fract(p.x*p.y); }',
+    'float n3(vec3 p){',
+    '  vec3 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);',
+    '  float a=h21(i.xy+i.z*37.0), b=h21(i.xy+vec2(1.,0.)+i.z*37.0);',
+    '  float c=h21(i.xy+vec2(0.,1.)+i.z*37.0), d=h21(i.xy+vec2(1.,1.)+i.z*37.0);',
+    '  float e=h21(i.xy+(i.z+1.)*37.0), g=h21(i.xy+vec2(1.,0.)+(i.z+1.)*37.0);',
+    '  float hh=h21(i.xy+vec2(0.,1.)+(i.z+1.)*37.0), k=h21(i.xy+vec2(1.,1.)+(i.z+1.)*37.0);',
+    '  float x1=mix(mix(a,b,f.x),mix(c,d,f.x),f.y);',
+    '  float x2=mix(mix(e,g,f.x),mix(hh,k,f.x),f.y);',
+    '  return mix(x1,x2,f.z);',
+    '}',
+    'float fbm3(vec3 p){ float s=0.0,a=0.5; for(int i=0;i<5;i++){ s+=a*n3(p); p*=2.07; a*=0.5;} return s; }',
+    'void main(){',
+    '  vec3 d = normalize(vDir);',
+    '  float up = d.y*0.5+0.5;',
+    '  vec3 col = mix(vec3(0.055,0.085,0.17), vec3(0.012,0.02,0.058), smoothstep(0.42,0.95,up));',
+    '  col = mix(vec3(0.14,0.20,0.34), col, smoothstep(0.46,0.62,up));',
+    '  float neb = fbm3(d*2.6 + vec3(0.0,0.0,uTime*0.004));',
+    '  float neb2= fbm3(d*5.1 - vec3(3.1,0.6,uTime*0.002));',
+    '  vec3 nc = mix(vec3(0.10,0.14,0.42), vec3(0.30,0.13,0.42), neb2);',
+    '  col += nc * pow(max(neb-0.44,0.0),1.7) * 1.9;',
+    '  col += vec3(0.05,0.18,0.30) * pow(max(neb2-0.52,0.0),2.0) * 1.1;',
+    '  float ms = max(0.0, dot(d,uSun));',
+    '  col += vec3(0.45,0.52,0.70) * pow(ms, 220.0) * 3.0;',
+    '  col += vec3(0.12,0.17,0.28) * pow(ms, 6.0) * 0.45;',
+    '  col = mix(col, vec3(0.10,0.15,0.26), smoothstep(0.14,-0.06,d.y));',
+    '  if(uMode > 0.001){',
+    '    vec3 day = mix(vec3(0.42,0.60,0.86), vec3(0.10,0.30,0.68), smoothstep(0.0,0.80,up));',
+    '    day = mix(vec3(0.80,0.86,0.94), day, smoothstep(-0.02,0.30,d.y));',
+    '    float cl = fbm3(d*vec3(2.2,5.5,2.2) + vec3(uTime*0.010,0.0,uTime*0.006));',
+    '    float cov = smoothstep(0.46,0.78,cl) * smoothstep(0.02,0.28,d.y);',
+    '    day = mix(day, vec3(1.02,1.02,1.04), cov*0.80);',
+    '    day = mix(day, vec3(0.86,0.88,0.93), smoothstep(0.55,0.95,cl)*0.25);',
+    '    float sd = max(0.0, dot(d, normalize(uSun)));',
+    '    day += vec3(1.0,0.96,0.88) * pow(sd, 1400.0) * 14.0;',
+    '    day += vec3(0.55,0.60,0.68) * pow(sd, 9.0) * 0.55;',
+    '    col = mix(col, day, uMode);',
+    '  }',
+    '  gl_FragColor = vec4(col,1.0);',
+    '}'
+  ].join('\n')
+});
+var skyDome = new THREE.Mesh(new THREE.SphereGeometry(3200, 48, 32), skyMat);
+skyDome.renderOrder = -10;
+scene.add(skyDome);
+
+/* --- Stars: real points so they catch the bloom --- */
+function buildStars() {
+  var N = 5200, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), siz = new Float32Array(N);
+  var c = new THREE.Color();
+  for (var i = 0; i < N; i++) {
+    var u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u);
+    var R = 2600 + Math.random() * 300;
+    var y = u;
+    if (y < -0.05) y = -y * 0.4;            // keep the sky busy, not the ground
+    pos[i * 3] = Math.cos(th) * r * R; pos[i * 3 + 1] = y * R; pos[i * 3 + 2] = Math.sin(th) * r * R;
+    var t = Math.random();
+    c.setHSL(0.55 + (Math.random() - 0.5) * 0.16, 0.35 + Math.random() * 0.4, 0.62 + Math.random() * 0.35);
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    siz[i] = Math.pow(t, 5) * 11 + 0.9;
+  }
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aCol', new THREE.BufferAttribute(col, 3));
+  g.setAttribute('aSize', new THREE.BufferAttribute(siz, 1));
+  var m = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+    uniforms: { uTime: { value: 0 }, uPix: { value: 1 } },
+    vertexShader: [
+      'attribute vec3 aCol; attribute float aSize; uniform float uTime, uPix;',
+      'varying vec3 vC; varying float vT;',
+      'void main(){ vC=aCol;',
+      '  float tw = 0.72 + 0.28*sin(uTime*(1.1+fract(aSize)*4.0)+aSize*13.0);',
+      '  vT = tw;',
+      '  vec4 mv = modelViewMatrix * vec4(position,1.0);',
+      '  gl_PointSize = max(aSize * tw * uPix, 0.8);',
+      '  gl_Position = projectionMatrix * mv; }'
+    ].join('\n'),
+    fragmentShader: [
+      'varying vec3 vC; varying float vT;',
+      'void main(){ vec2 p = gl_PointCoord-0.5; float d=length(p);',
+      '  float core = smoothstep(0.5,0.06,d);',
+      '  float halo = pow(max(0.0,1.0-d*2.0),5.0);',
+      '  float cross_ = max(0.0, 1.0-abs(p.x)*26.0)*max(0.0,1.0-abs(p.y)*3.2)',
+      '              + max(0.0, 1.0-abs(p.y)*26.0)*max(0.0,1.0-abs(p.x)*3.2);',
+      '  float a = core*0.9 + halo*0.22 + cross_*0.16;',
+      '  if(a<0.004) discard;',
+      '  gl_FragColor = vec4(vC*(1.0+cross_*1.1)*vT, a); }'
+    ].join('\n')
+  });
+  var pts = new THREE.Points(g, m);
+  pts.frustumCulled = false;
+  pts.renderOrder = -9;
+  scene.add(pts);
+  starPts = pts;
+  return m;
+}
+var starPts = null;
+var starMat = buildStars();
+
+/* --- an ice giant low over the horizon --- */
+var planetGroup = new THREE.Group();
+scene.add(planetGroup);
+var planetMat = new THREE.ShaderMaterial({
+  fog: false, depthWrite: true, transparent: false,
+  uniforms: { uSun: { value: SUN_DIR.clone() }, uTime: { value: 0 } },
+  vertexShader: [
+    'varying vec3 vN; varying vec3 vP; varying vec3 vNv;',
+    'void main(){ vN = normalize(mat3(modelMatrix)*normal); vNv = normalize(normalMatrix*normal); vP = position;',
+    '  gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }'
+  ].join('\n'),
+  fragmentShader: [
+    'precision highp float; varying vec3 vN; varying vec3 vP; varying vec3 vNv; uniform vec3 uSun; uniform float uTime;',
+    'float h(vec2 p){p=fract(p*vec2(127.31,311.7));p+=dot(p,p+33.3);return fract(p.x*p.y);}',
+    'float nz(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);',
+    ' return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}',
+    'float fb(vec2 p){float s=0.,a=.5;for(int i=0;i<5;i++){s+=a*nz(p);p*=2.2;a*=.5;}return s;}',
+    'void main(){',
+    '  vec3 n = normalize(vN);',
+    '  float lat = normalize(vP).y;',
+    '  float bands = fb(vec2(lat*11.0, uTime*0.006 + fb(vec2(lat*5.0, 1.3))*1.6));',
+    '  vec3 base = mix(vec3(0.30,0.45,0.62), vec3(0.62,0.74,0.86), bands);',
+    '  base = mix(base, vec3(0.80,0.86,0.94), smoothstep(0.55,0.95,abs(lat)));',
+    '  float ndl = clamp(dot(n, normalize(uSun))*0.5+0.5, 0.0, 1.0);',
+    '  float lit = smoothstep(0.36,0.86,ndl);',
+    '  vec3 col = base * (0.045 + lit*0.95);',
+    '  float rim = pow(1.0-abs(dot(normalize(vNv), vec3(0.0,0.0,1.0))), 3.0);',
+    '  col += vec3(0.35,0.55,0.85)*rim*0.55*(0.25+lit);',
+    '  gl_FragColor = vec4(col, 1.0);',
+    '}'
+  ].join('\n')
+});
+var planet = new THREE.Mesh(new THREE.SphereGeometry(230, 48, 32), planetMat);
+planetGroup.add(planet);
+var ringMat = new THREE.ShaderMaterial({
+  fog: false, depthWrite: false, transparent: true, side: THREE.DoubleSide,
+  blending: THREE.NormalBlending,
+  uniforms: {},
+  vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} ',
+  fragmentShader: [
+    'precision highp float; varying vec2 vUv;',
+    'float h(float x){ return fract(sin(x*91.17)*43758.5453); }',
+    'void main(){',
+    '  float r = vUv.y;',
+    '  float band = 0.0;',
+    '  for(int i=0;i<7;i++){ float fi=float(i);',
+    '    band += smoothstep(0.05,0.0,abs(r-(0.15+fi*0.12)))*(0.35+0.65*h(fi)); }',
+    '  float a = clamp(band,0.0,1.0)*0.55;',
+    '  gl_FragColor = vec4(vec3(0.70,0.78,0.90)*a, a);',
+    '}'
+  ].join('\n')
+});
+var ring = new THREE.Mesh(new THREE.RingGeometry(290, 470, 96, 1), ringMat);
+ring.rotation.x = -1.16; ring.rotation.z = 0.34;
+planetGroup.add(ring);
+planetGroup.renderOrder = -8.5;
+planet.renderOrder = -8.5; ring.renderOrder = -8.4;
+
+/* --- Aurora ribbons --- */
+var auroraMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending, fog: false,
+  uniforms: { uTime: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+  fragmentShader: [
+    'precision highp float; varying vec2 vUv; uniform float uTime;',
+    'float h(vec2 p){p=fract(p*vec2(127.31,311.7));p+=dot(p,p+33.3);return fract(p.x*p.y);} ',
+    'float nz(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);',
+    ' return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}',
+    'float fb(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*nz(p);p*=2.1;a*=.5;}return s;}',
+    'void main(){',
+    '  float t = uTime*0.035;',
+    '  float wav = fb(vec2(vUv.x*3.2+t, vUv.y*1.1-t*0.4));',
+    '  float band = smoothstep(0.55,0.0,abs(vUv.y-0.42-wav*0.30));',
+    '  float curt = pow(1.0-vUv.y,1.6) * (0.55+0.45*fb(vec2(vUv.x*22.0-t*2.0, vUv.y*2.0)));',
+    '  float a = band*curt*0.55;',
+    '  vec3 c = mix(vec3(0.16,0.95,0.62), vec3(0.35,0.42,1.0), vUv.y);',
+    '  c = mix(c, vec3(0.85,0.35,0.75), smoothstep(0.6,1.0,wav));',
+    '  a *= smoothstep(0.0,0.12,vUv.x)*smoothstep(1.0,0.86,vUv.x);',
+    '  gl_FragColor = vec4(c*a*1.5, a);',
+    '}'
+  ].join('\n')
+});
+var auroraMeshes = [];
+for (var ai = 0; ai < 3; ai++) {
+  var ag = new THREE.CylinderGeometry(900 + ai * 260, 900 + ai * 260, 620, 64, 1, true, ai * 1.4, 2.4);
+  var am = new THREE.Mesh(ag, auroraMat);
+  am.position.y = 380 + ai * 70;
+  am.rotation.y = ai * 1.1;
+  am.renderOrder = -8;
+  scene.add(am);
+  auroraMeshes.push(am);
+}
+
+/* ============================================================
+   4. SNOW DEFORMATION BUFFER  (R = compression, G = pushed-up rim)
+   ============================================================ */
+var deformRT = new THREE.WebGLRenderTarget(Q.defRes, Q.defRes, {
+  minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+  format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: false, stencilBuffer: false
+});
+deformRT.texture.wrapS = deformRT.texture.wrapT = THREE.ClampToEdgeWrapping;
+
+var defScene = new THREE.Scene();
+var defCam = new THREE.OrthographicCamera(-HALF, HALF, HALF, -HALF, 0.1, 10);
+defCam.position.set(0, 0, 5);
+defScene.add(defCam);
+
+var DECAL_VS = [
+  'varying vec2 vUv;',
+  'void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }'
+].join('\n');
+
+var DECAL_FS = [
+  'precision highp float; varying vec2 vUv;',
+  'uniform float uDepth, uRim, uSeed, uKind;',
+  'float h(vec2 p){p=fract(p*vec2(127.31,311.7));p+=dot(p,p+33.3);return fract(p.x*p.y);} ',
+  'void main(){',
+  '  vec2 p = (vUv-0.5)*2.0;',
+  '  float depth = 0.0, rim = 0.0;',
+  '  if(uKind < 0.5){',
+  '    vec2 q = vec2(p.x*1.85, p.y);',
+  '    float toe  = length(max(abs(vec2(q.x, q.y-0.34))-vec2(0.30,0.17),0.0))-0.24;',
+  '    float heel = length(max(abs(vec2(q.x, q.y+0.36))-vec2(0.24,0.13),0.0))-0.21;',
+  '    float arch = length(max(abs(vec2(q.x, q.y))-vec2(0.20,0.42),0.0))-0.18;',
+  '    float shape = min(min(toe,heel),arch);',
+  '    float m = smoothstep(0.06,-0.03, shape);',
+  '    float tread = 0.80 + 0.20*step(0.45, fract(vUv.y*11.0 + uSeed));',
+  '    tread *= 0.88 + 0.12*step(0.5, fract(vUv.x*4.0));',
+  '    depth = m*uDepth*tread;',
+  '    rim = smoothstep(0.26,0.02,abs(shape-0.10))*uRim*(0.65+0.35*h(vUv*19.0+uSeed*3.0))*(1.0-m);',
+  '  } else if(uKind < 1.5){',
+  '    float shape = length(p)-0.62;',
+  '    float m = smoothstep(0.06,-0.03, shape);',
+  '    depth = m*uDepth*(0.9+0.1*h(vUv*30.0+uSeed));',
+  '    rim = smoothstep(0.26,0.02,abs(shape-0.10))*uRim*(1.0-m);',
+  '  } else if(uKind < 2.5){',
+  '    float m = pow(max(0.0, 1.0-length(p)), 1.5);',
+  '    depth = m*uDepth*(0.86+0.14*h(vUv*26.0+uSeed));',
+  '    rim = smoothstep(0.30,0.02,abs(length(p)-0.88))*uRim;',
+  '  } else if(uKind < 3.5){',
+  '    float m = pow(max(0.0, 1.0-length(p)), 1.7);',
+  '    rim = m*uRim*(0.80+0.20*h(vUv*13.0+uSeed));',
+  '  } else {',
+  '    vec2 q = vec2(p.x*1.30, p.y*0.60);',
+  '    float shape = length(q)-0.52;',
+  '    float m = smoothstep(0.14,-0.08, shape);',
+  '    depth = m*uDepth*(0.80+0.20*h(vUv*24.0+uSeed));',
+  '    rim = smoothstep(0.30,0.02,abs(shape-0.16))*uRim*(1.0-m);',
+  '  }',
+  '  gl_FragColor = vec4(depth, rim, 0.0, 1.0);',
+  '}'
+].join('\n');
+
+var decalPool = [], DECAL_N = 56, decalIdx = 0;
+for (var di = 0; di < DECAL_N; di++) {
+  var dm = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
+    vertexShader: DECAL_VS, fragmentShader: DECAL_FS, transparent: true, depthTest: false, depthWrite: false,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    uniforms: { uDepth: { value: 0.5 }, uRim: { value: 0.4 }, uSeed: { value: 0 }, uKind: { value: 0 } }
+  }));
+  dm.visible = false;
+  defScene.add(dm);
+  decalPool.push(dm);
+}
+
+/* Snowfall slowly refills every print. */
+var healScene = new THREE.Scene();
+var healQuad = new THREE.Mesh(new THREE.PlaneGeometry(REGION, REGION), new THREE.ShaderMaterial({
+  uniforms: { uRate: { value: 1.6 / 255 } },
+  vertexShader: 'void main(){ gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+  fragmentShader: 'uniform float uRate; void main(){ gl_FragColor = vec4(uRate, uRate*0.5, 0.0, 0.0); }',
+  transparent: true, depthTest: false, depthWrite: false,
+  blending: THREE.CustomBlending, blendEquation: THREE.ReverseSubtractEquation,
+  blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+  blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor
+}));
+healScene.add(healQuad);
+
+renderer.setRenderTarget(deformRT);
+renderer.setClearColor(0x000000, 1);
+renderer.clear();
+renderer.setRenderTarget(null);
+
+/* The deform window travels with the player. Its origin is snapped to whole
+   cells so scrolling is a lossless integer shift of both texture and arrays. */
+var CN = 512, CSTEP = REGION / CN;
+var TEX_PER_CELL = Q.defRes / CN;
+var defOriginX = 0, defOriginZ = 0;
+
+var deformRT2 = deformRT.clone();
+var shiftMat = new THREE.ShaderMaterial({
+  uniforms: { tIn: { value: null }, uOff: { value: new THREE.Vector2() } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }',
+  fragmentShader: [
+    'varying vec2 vUv; uniform sampler2D tIn; uniform vec2 uOff;',
+    'void main(){ vec2 uv = vUv + uOff;',
+    '  if(uv.x<0.0||uv.x>1.0||uv.y<0.0||uv.y>1.0){ gl_FragColor = vec4(0.0,0.0,0.0,1.0); return; }',
+    '  gl_FragColor = texture2D(tIn, uv); }'
+  ].join('\n')
+});
+var shiftScratch = new Float32Array(CN * CN);
+function shiftArray(a, dx, dz) {
+  shiftScratch.fill(0);
+  for (var j = 0; j < CN; j++) {
+    var sj = j + dz;
+    if (sj < 0 || sj >= CN) continue;
+    var i0 = Math.max(0, -dx), i1 = Math.min(CN, CN - dx);
+    if (i1 <= i0) continue;
+    shiftScratch.set(a.subarray(sj * CN + i0 + dx, sj * CN + i1 + dx), j * CN + i0);
+  }
+  a.set(shiftScratch);
+}
+function clearDeform() {
+  renderer.autoClear = true;
+  renderer.setRenderTarget(deformRT);
+  renderer.setClearColor(0x000000, 1);
+  renderer.clear();
+  renderer.setRenderTarget(null);
+  packGrid.fill(0); carveR.fill(0); carveG.fill(0);
+}
+function updateField(px, pz) {
+  var snap = CSTEP * 4;
+  var ox = Math.round(px / snap) * snap, oz = Math.round(pz / snap) * snap;
+  if (ox === defOriginX && oz === defOriginZ) return;
+  var dxc = Math.round((ox - defOriginX) / CSTEP), dzc = Math.round((oz - defOriginZ) / CSTEP);
+  defOriginX = ox; defOriginZ = oz;
+  SNOW_UNIFORMS.uDefOrigin.value.set(ox, oz);
+  if (Math.abs(dxc) >= CN || Math.abs(dzc) >= CN) { clearDeform(); return; }
+  shiftMat.uniforms.tIn.value = deformRT.texture;
+  shiftMat.uniforms.uOff.value.set(dxc * TEX_PER_CELL / Q.defRes, dzc * TEX_PER_CELL / Q.defRes);
+  blit(shiftMat, deformRT2);
+  var tmp = deformRT; deformRT = deformRT2; deformRT2 = tmp;
+  SNOW_UNIFORMS.uDeform.value = deformRT.texture;
+  shiftArray(packGrid, dxc, dzc);
+  shiftArray(carveR, dxc, dzc);
+  shiftArray(carveG, dxc, dzc);
+}
+var packGrid = new Float32Array(CN * CN);
+function packIdx(x, z) {
+  var ix = Math.floor((x - defOriginX + HALF) / CSTEP), iz = Math.floor((z - defOriginZ + HALF) / CSTEP);
+  if (ix < 0 || iz < 0 || ix >= CN || iz >= CN) return -1;
+  return iz * CN + ix;
+}
+function packAt(x, z) { var i = packIdx(x, z); return i < 0 ? 0 : packGrid[i]; }
+function packAdd(x, z, radius, amount) {
+  var r = Math.ceil(radius / CSTEP) + 1;
+  var fx = (x - defOriginX + HALF) / CSTEP - 0.5, fz = (z - defOriginZ + HALF) / CSTEP - 0.5;
+  var cx = Math.round(fx), cz = Math.round(fz);
+  for (var j = -r; j <= r; j++) for (var i = -r; i <= r; i++) {
+    var ix = cx + i, iz = cz + j;
+    if (ix < 0 || iz < 0 || ix >= CN || iz >= CN) continue;
+    var ddx = (ix - fx) * CSTEP, ddz = (iz - fz) * CSTEP;
+    var d = Math.sqrt(ddx * ddx + ddz * ddz) / radius;
+    if (d > 1) continue;
+    var k = iz * CN + ix;
+    packGrid[k] = clamp(packGrid[k] + amount * (1 - d * d), 0, 1);
+  }
+}
+
+/* Excavated craters and dumped drifts are mirrored on the CPU so the player
+   walks down into the holes and up over the piles they make. Footprints stay
+   out of it — boot sink already covers those. */
+var carveR = new Float32Array(CN * CN);
+var carveG = new Float32Array(CN * CN);
+function carveAdd(x, z, radius, dR, dG) {
+  var r = Math.ceil(radius / CSTEP) + 1;
+  var fx = (x - defOriginX + HALF) / CSTEP - 0.5, fz = (z - defOriginZ + HALF) / CSTEP - 0.5;
+  var cx = Math.round(fx), cz = Math.round(fz);
+  for (var j = -r; j <= r; j++) for (var i = -r; i <= r; i++) {
+    var ix = cx + i, iz = cz + j;
+    if (ix < 0 || iz < 0 || ix >= CN || iz >= CN) continue;
+    var ddx = (ix - fx) * CSTEP, ddz = (iz - fz) * CSTEP;
+    var d = Math.sqrt(ddx * ddx + ddz * ddz) / radius;
+    if (d > 1) continue;
+    /* same profile the decal shader draws, so what you walk on is what you see */
+    var f = Math.pow(1 - d, 1.7), k = iz * CN + ix;
+    if (dR) carveR[k] = clamp(carveR[k] + dR * f, 0, 1);
+    if (dG) carveG[k] = clamp(carveG[k] + dG * f, 0, 1);
+  }
+}
+function carveSample(arr, x, z) {
+  var fx = (x - defOriginX + HALF) / CSTEP - 0.5, fz = (z - defOriginZ + HALF) / CSTEP - 0.5;
+  var ix = Math.floor(fx), iz = Math.floor(fz), tx = fx - ix, tz = fz - iz;
+  function g(a, b) {
+    a = clamp(a, 0, CN - 1); b = clamp(b, 0, CN - 1);
+    return arr[b * CN + a];
+  }
+  var a = g(ix, iz), b = g(ix + 1, iz), c = g(ix, iz + 1), d = g(ix + 1, iz + 1);
+  return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
+}
+function carveAt(x, z) {
+  return -carveSample(carveR, x, z) * MAX_DEPTH + carveSample(carveG, x, z) * RIM_H;
+}
+
+var DECAL_SHAPE = [
+  { w: 0.62, h: 0.95, rim: 0.050 },
+  { w: 1.50, h: 1.50, rim: 0.040 },
+  { w: 2.30, h: 2.30, rim: 0.020 },
+  { w: 3.00, h: 3.00, rim: 1.000 },
+  { w: 1.50, h: 2.70, rim: 0.062 }
+];
+
+var decalQueue = [];
+function stampPrint(x, z, yaw, depth01, kind, size) {
+  if (Math.abs(x - defOriginX) > HALF - 2 || Math.abs(z - defOriginZ) > HALF - 2) return;
+  kind = kind || 0; size = size || 1;
+  decalQueue.push({ x: x, z: z, yaw: yaw, d: depth01, kind: kind, s: size });
+  packAdd(x, z, 0.42 * size, 0.30 * depth01);
+}
+
+function flushDecals() {
+  if (!decalQueue.length) return;
+  var used = [];
+  for (var i = 0; i < decalQueue.length && i < DECAL_N; i++) {
+    var q = decalQueue[i];
+    var m = decalPool[decalIdx++ % DECAL_N];
+    var sh = DECAL_SHAPE[q.kind];
+    m.scale.set(sh.w * q.s, sh.h * q.s, 1);
+    m.position.set(q.x - defOriginX, q.z - defOriginZ, 0);
+    m.rotation.z = -q.yaw;
+    m.material.uniforms.uDepth.value = q.d;
+    m.material.uniforms.uRim.value = (q.kind === 3 ? q.d : q.d * sh.rim);
+    m.material.uniforms.uSeed.value = Math.random() * 10;
+    m.material.uniforms.uKind.value = q.kind;
+    m.visible = true;
+    used.push(m);
+  }
+  decalQueue.length = 0;
+  renderer.autoClear = false;
+  renderer.setRenderTarget(deformRT);
+  renderer.render(defScene, defCam);
+  renderer.setRenderTarget(null);
+  renderer.autoClear = true;
+  for (var k = 0; k < used.length; k++) used[k].visible = false;
+}
+
+var healTimer = 0;
+function healSnow(dt, intensity) {
+  if (intensity <= 0.001) return;
+  healTimer += dt;
+  if (healTimer < 0.2) return;
+  healTimer = 0;
+  var rate = (1.0 + intensity * 2.2) / 255;
+  healQuad.material.uniforms.uRate.value = rate;
+  renderer.autoClear = false;
+  renderer.setRenderTarget(deformRT);
+  renderer.render(healScene, defCam);
+  renderer.setRenderTarget(null);
+  renderer.autoClear = true;
+  for (var i = 0; i < packGrid.length; i++) {
+    if (packGrid[i] > 0) packGrid[i] = Math.max(0, packGrid[i] - 0.0016 * intensity);
+    if (carveR[i] > 0) carveR[i] = Math.max(0, carveR[i] - rate);
+    if (carveG[i] > 0) carveG[i] = Math.max(0, carveG[i] - rate * 0.5);
+  }
+}
+
+/* ============================================================
+   5. TERRAIN — baked heights, tiled, shader-displaced by the snow buffer
+   ============================================================ */
+/* The field has no edges. Terrain height is evaluated straight from the noise,
+   so any coordinate is valid; meshes are recycled around the player. */
+var TILE = 30;                       // metres per terrain tile
+var TILES = Math.round(REGION / TILE);
+var tileRes = Math.round(TILE / Q.tileStep);
+
+function groundAt(x, z) {
+  return terrainNoise(x, z) + carveAt(x, z);
+}
+
+var whiteTex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat);
+whiteTex.needsUpdate = true;
+
+var SNOW_UNIFORMS = {
+  uDeform:   { value: deformRT.texture },
+  uRegion:   { value: REGION },
+  uDefOrigin:{ value: new THREE.Vector2() },
+  uTexel:    { value: 1 / Q.defRes },
+  uMaxDepth: { value: MAX_DEPTH },
+  uRimH:     { value: RIM_H },
+  uTime:     { value: 0 },
+  uSunDir:   { value: SUN_DIR.clone() },
+  uSunCol:   { value: new THREE.Vector3(1.0, 0.94, 0.86) },
+  uSkyCol:   { value: new THREE.Vector3(0.15, 0.24, 0.46) },
+  uGrdCol:   { value: new THREE.Vector3(0.05, 0.08, 0.17) },
+  uFogCol:   { value: new THREE.Vector3(0.045, 0.070, 0.135) },
+  uFogDen:   { value: 0.0041 },
+  uCamPos:   { value: new THREE.Vector3() },
+  uPlayer:   { value: new THREE.Vector3() },
+  uLampPos:  { value: new THREE.Vector3() },
+  uLampDir:  { value: new THREE.Vector3(0, 0, 1) },
+  uLampOn:   { value: 0 },
+  uOrbPos:   { value: new THREE.Vector3() },
+  uOrbAmt:   { value: 0 },
+  uShadowMap:{ value: whiteTex },
+  uShadowMat:{ value: new THREE.Matrix4() },
+  uShadowTx: { value: 1 / Q.shadow },
+  uHasShadow:{ value: 0 }
+};
+
+var SNOW_VS = [
+  'precision highp float;',
+  'uniform sampler2D uDeform; uniform float uRegion, uMaxDepth, uRimH; uniform vec2 uDefOrigin;',
+  'varying vec3 vWorld; varying vec3 vNrm;',
+  'float readDef(vec2 uv){',
+  '  if(uv.x<0.002||uv.x>0.998||uv.y<0.002||uv.y>0.998) return 0.0;',
+  '  vec4 d = texture2D(uDeform, uv);',
+  '  return -d.r*uMaxDepth + d.g*uRimH;',
+  '}',
+  'void main(){',
+  '  vec3 p = position;',
+  '  #ifndef FAR',
+  '  p.y += readDef((p.xz-uDefOrigin)/uRegion + 0.5);',
+  '  #endif',
+  '  vWorld = p; vNrm = normal;',
+  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.0);',
+  '}'
+].join('\n');
+
+var SNOW_FS = [
+  'precision highp float;',
+  '#include <packing>',
+  'varying vec3 vWorld; varying vec3 vNrm;',
+  'uniform sampler2D uDeform; uniform float uRegion, uTexel, uMaxDepth, uRimH, uTime; uniform vec2 uDefOrigin;',
+  'uniform vec3 uSunDir, uSunCol, uSkyCol, uGrdCol, uFogCol, uCamPos, uPlayer, uLampPos, uLampDir;',
+  'uniform float uFogDen, uLampOn;',
+  'uniform vec3 uOrbPos; uniform float uOrbAmt;',
+  'uniform sampler2D uShadowMap; uniform mat4 uShadowMat; uniform float uShadowTx, uHasShadow;',
+
+  'float h21(vec2 p){ p=fract(p*vec2(127.31,311.7)); p+=dot(p,p+33.33); return fract(p.x*p.y); }',
+  'float nz(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);',
+  '  return mix(mix(h21(i),h21(i+vec2(1,0)),f.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x), f.y); }',
+  'float fb(vec2 p){ float s=0.0,a=0.5; for(int i=0;i<3;i++){ s+=a*nz(p); p*=2.13; a*=0.5;} return s; }',
+
+  'vec2 defRG(vec2 w){',
+  '  vec2 uv = (w-uDefOrigin)/uRegion + 0.5;',
+  '  if(uv.x<0.002||uv.x>0.998||uv.y<0.002||uv.y>0.998) return vec2(0.0);',
+  '  return texture2D(uDeform, uv).rg;',
+  '}',
+  'float defH(vec2 w){ vec2 d = defRG(w); return -d.r*uMaxDepth + d.g*uRimH; }',
+
+  'float shadowAt(vec3 wp, vec3 n){',
+  '  if(uHasShadow < 0.5) return 1.0;',
+  '  vec4 sc = uShadowMat * vec4(wp + n*0.045, 1.0);',
+  '  vec3 s = sc.xyz / sc.w;',
+  '  if(s.x<0.002||s.x>0.998||s.y<0.002||s.y>0.998||s.z>1.0) return 1.0;',
+  '  float sum = 0.0;',
+  '  for(int y=-1;y<=1;y++){ for(int x=-1;x<=1;x++){',
+  '    vec2 o = vec2(float(x),float(y))*uShadowTx*1.35;',
+  '    float d = unpackRGBAToDepth(texture2D(uShadowMap, s.xy+o));',
+  '    sum += step(s.z - 0.0018, d);',
+  '  }}',
+  '  return sum/9.0;',
+  '}',
+
+  'void main(){',
+  '  vec3 V = normalize(uCamPos - vWorld);',
+  '  float dist = length(uCamPos - vWorld);',
+  '  vec3 n = normalize(vNrm);',
+  '  float comp = 0.0, rimv = 0.0;',
+  '  #ifndef FAR',
+  '  vec2 rg = defRG(vWorld.xz); comp = rg.r; rimv = rg.g;',
+  '  float e = uRegion*uTexel;',
+  '  float hx = defH(vWorld.xz+vec2(e,0.0)) - defH(vWorld.xz-vec2(e,0.0));',
+  '  float hz = defH(vWorld.xz+vec2(0.0,e)) - defH(vWorld.xz-vec2(0.0,e));',
+  '  float detFade = 1.0 - smoothstep(28.0, 70.0, dist);',
+  '  n = normalize(n + vec3(-hx/(2.0*e), 0.0, -hz/(2.0*e)) * detFade);',
+  '  #endif',
+  '  float micro = 1.0 - smoothstep(6.0, 26.0, dist);',
+  '  if(micro > 0.003){',
+  '    vec2 mp = vWorld.xz*7.0;',
+  '    float c0 = fb(mp), cx = fb(mp+vec2(0.09,0.0)), cz = fb(mp+vec2(0.0,0.09));',
+  '    n = normalize(n + vec3(-(cx-c0), 0.0, -(cz-c0))*3.4*micro);',
+  '  }',
+  '  float sastr = 1.0 - smoothstep(14.0, 62.0, dist);',
+  '  if(sastr > 0.003){',
+  '    vec2 wd = vec2(0.94, 0.34);',
+  '    vec2 sp0 = vec2(dot(vWorld.xz, wd)*0.5, dot(vWorld.xz, vec2(-wd.y, wd.x))*3.1);',
+  '    float s0 = fb(sp0), sx = fb(sp0+vec2(0.10,0.0)), sz = fb(sp0+vec2(0.0,0.10));',
+  '    vec2 grad = vec2(sx-s0, sz-s0);',
+  '    n = normalize(n + vec3(-(grad.x*wd.x - grad.y*wd.y), 0.0, -(grad.x*wd.y + grad.y*wd.x))*1.5*sastr);',
+  '  }',
+
+  '  float shadow = shadowAt(vWorld, n);',
+  '  vec3 L = normalize(uSunDir);',
+  '  float ndl = dot(n,L);',
+  '  float wrapd = clamp((ndl+0.55)/1.55, 0.0, 1.0);',
+  '  wrapd = pow(wrapd, 1.25);',
+
+  '  float packAmt = clamp(comp*1.35, 0.0, 1.0);',
+  '  vec3 fresh  = vec3(0.88,0.93,1.00);',
+  '  vec3 dense  = vec3(0.50,0.62,0.86);',
+  '  vec3 albedo = mix(fresh, dense, packAmt);',
+  '  albedo += vec3(0.04,0.05,0.06)*rimv*2.0;',
+
+  '  float ao = 1.0 - comp*0.66;',
+  '  float pd = length(vWorld.xz - uPlayer.xz);',
+  '  ao *= 1.0 - 0.42*exp(-pd*pd*1.25) * clamp(1.0-(vWorld.y-uPlayer.y+0.4),0.0,1.0);',
+
+  '  vec3 skyAmb = mix(uGrdCol, uSkyCol, n.y*0.5+0.5) * ao;',
+  '  vec3 col = albedo * skyAmb * 0.95;',
+  '  col += albedo * uSunCol * wrapd * shadow * ao * 0.92;',
+
+  '  float sss = pow(clamp(dot(V,-L),0.0,1.0), 3.0) * 0.30 * shadow;',
+  '  col += vec3(0.40,0.52,0.82) * sss * albedo;',
+
+  '  vec3 H = normalize(L+V);',
+  '  float spec = pow(max(dot(n,H),0.0), 64.0) * (0.12+0.55*packAmt) * shadow;',
+  '  col += uSunCol * spec;',
+
+  '  float fres = pow(1.0-clamp(dot(n,V),0.0,1.0), 4.5);',
+  '  col += uSkyCol * fres * 0.40;',
+
+  '  float sparkFade = (1.0 - smoothstep(3.0, 34.0, dist));',
+  '  if(sparkFade > 0.004){',
+  '    vec3 gp = floor(vWorld*95.0);',
+  '    float r1 = h21(gp.xz+gp.y*3.1);',
+  '    vec3 sn = normalize(n + (vec3(h21(gp.xy+1.3), h21(gp.yz+7.7), h21(gp.zx+3.9))-0.5)*1.9);',
+  '    float sp = pow(max(dot(sn,H),0.0), 260.0) * step(0.87, r1);',
+  '    col += vec3(1.00,1.03,1.12) * sp * 11.0 * sparkFade * shadow;',
+  '  }',
+
+  '  if(uLampOn > 0.5){',
+  '    vec3 Lv = uLampPos - vWorld; float ld = length(Lv); Lv /= max(ld,0.001);',
+  '    float cone = smoothstep(0.60, 0.92, dot(-Lv, normalize(uLampDir)));',
+  '    float att = 1.0/(1.0+ld*ld*0.055);',
+  '    col += albedo * vec3(1.0,0.96,0.88) * cone*att*max(dot(n,Lv),0.0)*2.6;',
+  '  }',
+
+  '  if(uOrbAmt > 0.01){',
+  '    vec3 Ov = uOrbPos - vWorld; float od = length(Ov);',
+  '    col += albedo * vec3(0.42,0.66,1.0) * uOrbAmt * max(dot(n, Ov/max(od,0.001)),0.0) / (1.0 + od*od*0.30);',
+  '  }',
+  '  float hfade = exp(-max(vWorld.y+1.0,0.0)*0.035);',
+  '  float fogf = 1.0 - exp(-dist*dist*uFogDen*uFogDen*hfade);',
+  '  fogf = max(fogf, smoothstep(60.0, 520.0, dist)*0.55);',
+  '  vec3 fogc = uFogCol + uSkyCol*0.38;',
+  '  float sunGlow = pow(max(dot(-V, L),0.0), 4.0);',
+  '  fogc += vec3(0.26,0.30,0.42)*sunGlow;',
+  '  col = mix(col, fogc, clamp(fogf,0.0,1.0));',
+  '  gl_FragColor = vec4(col, 1.0);',
+  '}'
+].join('\n');
+
+var snowMat = new THREE.ShaderMaterial({
+  uniforms: SNOW_UNIFORMS, vertexShader: SNOW_VS, fragmentShader: SNOW_FS, fog: false
+});
+var snowFarMat = new THREE.ShaderMaterial({
+  uniforms: SNOW_UNIFORMS, vertexShader: SNOW_VS, fragmentShader: SNOW_FS,
+  fog: false, defines: { FAR: '' }
+});
+
+/* --- terrain tiles recycle around the player --- */
+var terrainTiles = [], tileQueue = [];
+var tileIndex, tileScratchH;
+(function () {
+  var n = tileRes + 1;
+  tileIndex = new THREE.BufferAttribute(new Uint32Array(tileRes * tileRes * 6), 1);
+  var q = 0;
+  for (var j = 0; j < tileRes; j++) for (var i = 0; i < tileRes; i++) {
+    var a = j * n + i, b = a + 1, c = a + n, d = c + 1;
+    tileIndex.array[q++] = a; tileIndex.array[q++] = c; tileIndex.array[q++] = b;
+    tileIndex.array[q++] = b; tileIndex.array[q++] = c; tileIndex.array[q++] = d;
+  }
+  tileScratchH = new Float32Array((tileRes + 3) * (tileRes + 3));
+})();
+
+function makeTile() {
+  var n = tileRes + 1;
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * n * 3), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(n * n * 3), 3));
+  g.setIndex(tileIndex);
+  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), TILE);
+  var m = new THREE.Mesh(g, snowMat);
+  m.frustumCulled = true;
+  scene.add(m);
+  return { mesh: m, tx: 999999, tz: 999999, ready: false };
+}
+
+function fillTile(tile, tx, tz) {
+  var n = tileRes + 1, w = tileRes + 3, step = TILE / tileRes;
+  var ox = tx * TILE, oz = tz * TILE;
+  /* one-vertex border so normals match across tile seams */
+  for (var j = -1; j <= n; j++) {
+    var z = oz + j * step;
+    for (var i = -1; i <= n; i++) {
+      tileScratchH[(j + 1) * w + (i + 1)] = terrainNoise(ox + i * step, z);
+    }
+  }
+  var pos = tile.mesh.geometry.attributes.position.array;
+  var nor = tile.mesh.geometry.attributes.normal.array;
+  var p = 0;
+  for (var jj = 0; jj < n; jj++) {
+    for (var ii = 0; ii < n; ii++) {
+      var k = (jj + 1) * w + (ii + 1);
+      pos[p] = ox + ii * step; pos[p + 1] = tileScratchH[k]; pos[p + 2] = oz + jj * step;
+      var nx = tileScratchH[k - 1] - tileScratchH[k + 1];
+      var nz = tileScratchH[k - w] - tileScratchH[k + w];
+      var ny = 2 * step, L = Math.sqrt(nx * nx + ny * ny + nz * nz);
+      nor[p] = nx / L; nor[p + 1] = ny / L; nor[p + 2] = nz / L;
+      p += 3;
+    }
+  }
+  tile.mesh.geometry.attributes.position.needsUpdate = true;
+  tile.mesh.geometry.attributes.normal.needsUpdate = true;
+  tile.mesh.geometry.boundingSphere.center.set(ox + TILE / 2, 0, oz + TILE / 2);
+  tile.mesh.geometry.boundingSphere.radius = TILE * 1.6;
+  tile.tx = tx; tile.tz = tz; tile.ready = true;
+  tile.mesh.visible = true;
+}
+
+function initTiles() {
+  for (var j = 0; j < TILES; j++) for (var i = 0; i < TILES; i++) terrainTiles.push(makeTile());
+}
+
+/* claim any tile that has fallen outside the window and re-place it */
+function updateTiles(px, pz, immediate) {
+  var cx = Math.floor(px / TILE), cz = Math.floor(pz / TILE);
+  var half = Math.floor(TILES / 2);
+  var need = {}, have = {};
+  for (var j = 0; j < TILES; j++) for (var i = 0; i < TILES; i++) {
+    need[(cx - half + i) + ',' + (cz - half + j)] = [cx - half + i, cz - half + j];
+  }
+  var spare = [];
+  for (var t = 0; t < terrainTiles.length; t++) {
+    var tl = terrainTiles[t], key = tl.tx + ',' + tl.tz;
+    if (tl.ready && need[key] && !have[key]) have[key] = true; else spare.push(tl);
+  }
+  for (var k in need) {
+    if (have[k]) continue;
+    var tile = spare.pop();
+    if (!tile) break;
+    tile.ready = false; tile.mesh.visible = false;
+    if (immediate) fillTile(tile, need[k][0], need[k][1]);
+    else tileQueue.push({ t: tile, x: need[k][0], z: need[k][1] });
+  }
+}
+
+function pumpTileQueue(budget) {
+  while (budget-- > 0 && tileQueue.length) {
+    var j = tileQueue.shift();
+    fillTile(j.t, j.x, j.z);
+  }
+}
+
+/* --- the world beyond the tiles: a square frame out to the horizon --- */
+var FAR_PER = 256, FAR_RN = 64;
+var farMesh = null, farScratch = null, farBuildRow = -1, farCentre = new THREE.Vector2(1e9, 1e9);
+
+function farPerim(t) {
+  if (t < 1) return [-1 + 2 * t, -1];
+  if (t < 2) return [1, -1 + 2 * (t - 1)];
+  if (t < 3) return [1 - 2 * (t - 2), 1];
+  return [-1, 1 - 2 * (t - 3)];
+}
+
+function buildFarField() {
+  var W = FAR_PER + 1;
+  var pos = new Float32Array(W * (FAR_RN + 1) * 3);
+  var idx = new Uint32Array(FAR_PER * FAR_RN * 6), q = 0;
+  for (var r = 0; r < FAR_RN; r++) for (var i = 0; i < FAR_PER; i++) {
+    var a = r * W + i, b = a + 1, c = a + W, d = c + 1;
+    idx[q++] = a; idx[q++] = c; idx[q++] = b;
+    idx[q++] = b; idx[q++] = c; idx[q++] = d;
+  }
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(pos.length), 3));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  farScratch = new Float32Array(pos.length);
+  farMesh = new THREE.Mesh(g, snowFarMat);
+  farMesh.frustumCulled = false;
+  scene.add(farMesh);
+}
+
+function farRow(r, ox, oz) {
+  var OUT = 1700, W = FAR_PER + 1;
+  var f = r / FAR_RN;
+  var scale = HALF * Math.pow(OUT / HALF, f * f * 0.82 + f * 0.18);
+  var k = r * W * 3;
+  for (var i = 0; i <= FAR_PER; i++) {
+    var pt = farPerim((i % FAR_PER) * 4 / FAR_PER);
+    var x = ox + pt[0] * scale, z = oz + pt[1] * scale;
+    var d = Math.max(Math.abs(x - ox), Math.abs(z - oz));
+    var far = clamp((d - 240) / 820, 0, 1);
+    var y = terrainNoise(x, z) * (1 - far);
+    var ridge = fbm(x * 0.0016 + 11, z * 0.0016 - 5, 3, 2.1, 0.55);
+    y += far * far * (ridge * 118 - 24) + far * (1 - far) * (fbm(x * 0.006, z * 0.006, 2, 2.0, 0.5) - 0.5) * 16;
+    farScratch[k] = x; farScratch[k + 1] = y; farScratch[k + 2] = z;
+    k += 3;
+  }
+}
+
+function pumpFarField(px, pz, immediate) {
+  if (!farMesh) return;
+  var cx = Math.floor(px / TILE) * TILE, cz = Math.floor(pz / TILE) * TILE;
+  if (farBuildRow < 0 && (cx !== farCentre.x || cz !== farCentre.y)) {
+    farCentre.set(cx, cz);
+    farBuildRow = 0;
+  }
+  if (farBuildRow < 0) return;
+  var chunk = immediate ? FAR_RN + 1 : 14;
+  while (chunk-- > 0 && farBuildRow <= FAR_RN) {
+    farRow(farBuildRow, farCentre.x, farCentre.y);
+    farBuildRow++;
+  }
+  if (farBuildRow > FAR_RN) {
+    farBuildRow = -1;
+    farMesh.geometry.attributes.position.array.set(farScratch);
+    farMesh.geometry.attributes.position.needsUpdate = true;
+    farMesh.geometry.computeVertexNormals();
+  }
+}
+
+/* ============================================================
+   6. THE ASTRONAUT
+   ============================================================ */
+var envCube = new THREE.WebGLCubeRenderTarget(128, {
+  format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter
+});
+var envCam = new THREE.CubeCamera(0.4, 2500, envCube);
+scene.add(envCam);
+
+function roundedBox(w, h, d, r, seg) {
+  var g = new THREE.BoxGeometry(w, h, d, seg, seg, seg);
+  var p = g.attributes.position, v = new THREE.Vector3();
+  var ix = w / 2 - r, iy = h / 2 - r, iz = d / 2 - r;
+  for (var i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    var cx = clamp(v.x, -ix, ix), cy = clamp(v.y, -iy, iy), cz = clamp(v.z, -iz, iz);
+    var dx = v.x - cx, dy = v.y - cy, dz = v.z - cz;
+    var l = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+    p.setXYZ(i, cx + dx / l * r, cy + dy / l * r, cz + dz / l * r);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+function patchTexture() {
+  var c = document.createElement('canvas'); c.width = c.height = 128;
+  var x = c.getContext('2d');
+  x.fillStyle = '#e9e9ea'; x.fillRect(0, 0, 128, 128);
+  x.fillStyle = '#b4212f';
+  for (var i = 0; i < 7; i++) x.fillRect(0, 8 + i * 16, 128, 8);
+  x.fillStyle = '#eee'; for (var j = 0; j < 6; j++) x.fillRect(0, 16 + j * 16, 128, 8);
+  x.fillStyle = '#1b3a86'; x.fillRect(0, 8, 56, 56);
+  x.fillStyle = '#fff';
+  for (var a = 0; a < 4; a++) for (var b = 0; b < 4; b++) {
+    x.beginPath(); x.arc(10 + a * 13, 18 + b * 13, 2.1, 0, 6.3); x.fill();
+  }
+  var t = new THREE.CanvasTexture(c);
+  t.anisotropy = 4;
+  return t;
+}
+
+function flareTexture() {
+  var c = document.createElement('canvas'); c.width = c.height = 256;
+  var x = c.getContext('2d');
+  var g = x.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.08, 'rgba(220,240,255,.85)');
+  g.addColorStop(0.28, 'rgba(150,200,255,.22)');
+  g.addColorStop(1, 'rgba(80,140,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  x.globalCompositeOperation = 'lighter';
+  x.strokeStyle = 'rgba(255,255,255,.5)';
+  for (var i = 0; i < 4; i++) {
+    x.save(); x.translate(128, 128); x.rotate(i * Math.PI / 4);
+    var lg = x.createLinearGradient(-128, 0, 128, 0);
+    lg.addColorStop(0, 'rgba(255,255,255,0)');
+    lg.addColorStop(0.5, 'rgba(255,255,255,' + (i % 2 ? 0.25 : 0.6) + ')');
+    lg.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = lg;
+    x.fillRect(-128, -(i % 2 ? 1.2 : 2.4), 256, (i % 2 ? 2.4 : 4.8));
+    x.restore();
+  }
+  return new THREE.CanvasTexture(c);
+}
+
+var suitMat = new THREE.MeshStandardMaterial({ color: 0xdfe4ec, roughness: 0.74, metalness: 0.03 });
+var suitSoft = new THREE.MeshStandardMaterial({ color: 0xbcc4d3, roughness: 0.9, metalness: 0.02 });
+var trimMat = new THREE.MeshStandardMaterial({ color: 0xa8b0be, roughness: 0.34, metalness: 0.7 });
+var darkMat = new THREE.MeshStandardMaterial({ color: 0x23262d, roughness: 0.62, metalness: 0.25 });
+var redMat  = new THREE.MeshStandardMaterial({ color: 0xb4212f, roughness: 0.55, metalness: 0.05 });
+var blueMat = new THREE.MeshStandardMaterial({ color: 0x1b3a86, roughness: 0.55, metalness: 0.05 });
+var goldMat = new THREE.MeshStandardMaterial({
+  color: 0xffbe57, roughness: 0.07, metalness: 1.0,
+  envMap: envCube.texture, envMapIntensity: 2.1
+});
+var glassMat = new THREE.MeshStandardMaterial({
+  color: 0x0a0f1a, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.55,
+  envMap: envCube.texture, envMapIntensity: 1.4
+});
+var patchMat = new THREE.MeshStandardMaterial({ map: patchTexture(), roughness: 0.8, metalness: 0.0 });
+
+var astro = new THREE.Group();
+var body = new THREE.Group();       // yaw + lean
+astro.add(body);
+
+function add(parent, geo, mat, x, y, z) {
+  var m = new THREE.Mesh(geo, mat);
+  m.position.set(x || 0, y || 0, z || 0);
+  m.castShadow = true; m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+
+/* torso */
+var torso = new THREE.Group(); torso.position.y = 0.92; body.add(torso);
+add(torso, roundedBox(0.60, 0.66, 0.42, 0.16, 5), suitMat, 0, 0.22, 0);
+add(torso, new THREE.SphereGeometry(0.30, 22, 16), suitSoft, 0, 0.02, 0).scale.set(1.0, 0.7, 0.78);
+/* waist bellows */
+for (var wb = 0; wb < 3; wb++) {
+  var wr = add(torso, new THREE.TorusGeometry(0.255, 0.035, 8, 24), suitSoft, 0, -0.06 + wb * 0.075, 0);
+  wr.rotation.x = Math.PI / 2; wr.scale.z = 0.82;
+}
+/* chest control module + hoses */
+add(torso, roundedBox(0.30, 0.17, 0.09, 0.03, 3), darkMat, 0, 0.30, 0.20);
+add(torso, new THREE.BoxGeometry(0.06, 0.04, 0.02), redMat, -0.08, 0.30, 0.25);
+add(torso, new THREE.BoxGeometry(0.06, 0.04, 0.02), blueMat, 0.08, 0.30, 0.25);
+/* harness webbing */
+add(torso, new THREE.BoxGeometry(0.09, 0.52, 0.03), darkMat, -0.17, 0.24, 0.20).rotation.z = 0.14;
+add(torso, new THREE.BoxGeometry(0.09, 0.52, 0.03), darkMat, 0.17, 0.24, 0.20).rotation.z = -0.14;
+add(torso, new THREE.BoxGeometry(0.44, 0.07, 0.03), darkMat, 0, 0.06, 0.21);
+/* mission patches */
+var p1 = add(torso, new THREE.PlaneGeometry(0.13, 0.09), patchMat, -0.245, 0.34, 0.16);
+p1.rotation.y = 0.75;
+var p2 = add(torso, new THREE.CircleGeometry(0.055, 20), blueMat, 0.245, 0.34, 0.16);
+p2.rotation.y = -0.75;
+
+/* backpack (PLSS) */
+var pack = add(torso, roundedBox(0.52, 0.62, 0.28, 0.09, 4), suitMat, 0, 0.24, -0.32);
+add(torso, roundedBox(0.30, 0.16, 0.10, 0.04, 3), darkMat, 0, 0.52, -0.40);
+add(torso, new THREE.CylinderGeometry(0.045, 0.045, 0.40, 12), trimMat, -0.19, 0.24, -0.49);
+add(torso, new THREE.CylinderGeometry(0.045, 0.045, 0.40, 12), trimMat, 0.19, 0.24, -0.49);
+(function hoses() {
+  var curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.18, 0.44, -0.18), new THREE.Vector3(-0.28, 0.34, 0.02),
+    new THREE.Vector3(-0.14, 0.28, 0.20), new THREE.Vector3(-0.04, 0.30, 0.22)
+  ]);
+  add(torso, new THREE.TubeGeometry(curve, 24, 0.022, 8, false), darkMat, 0, 0, 0);
+  var c2 = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.18, 0.44, -0.18), new THREE.Vector3(0.28, 0.32, 0.02),
+    new THREE.Vector3(0.14, 0.27, 0.20), new THREE.Vector3(0.04, 0.30, 0.22)
+  ]);
+  add(torso, new THREE.TubeGeometry(c2, 24, 0.022, 8, false), darkMat, 0, 0, 0);
+})();
+
+/* hip bearing + thigh rings */
+(function () {
+  var hr = add(body, new THREE.TorusGeometry(0.235, 0.045, 10, 26), trimMat, 0, hipY + 0.06, 0);
+  hr.rotation.x = Math.PI / 2; hr.scale.z = 0.8;
+})();
+
+/* neck + helmet */
+var head = new THREE.Group(); head.position.y = 0.56; torso.add(head);
+add(head, new THREE.CylinderGeometry(0.15, 0.18, 0.10, 18), trimMat, 0, -0.06, 0);
+var shell = add(head, new THREE.SphereGeometry(0.245, 30, 24), suitMat, 0, 0.06, 0);
+shell.scale.set(1.0, 1.04, 1.02);
+/* gold sun-visor: front shell */
+var visor = add(head, new THREE.SphereGeometry(0.252, 32, 26, -0.95, 1.9, 0.35, 1.5), goldMat, 0, 0.06, 0);
+visor.rotation.y = Math.PI;
+var visorIn = add(head, new THREE.SphereGeometry(0.238, 28, 22, -0.9, 1.8, 0.42, 1.4), glassMat, 0, 0.06, 0);
+visorIn.rotation.y = Math.PI;
+visorIn.castShadow = false;
+/* visor hood + hinges */
+/* dark skull cap behind the visor gives the glass some depth */
+var capIn = add(head, new THREE.SphereGeometry(0.222, 24, 18), darkMat, 0, 0.06, 0);
+capIn.castShadow = false;
+/* comms antenna */
+var ant = add(head, new THREE.CylinderGeometry(0.010, 0.014, 0.34, 8), trimMat, -0.17, 0.24, -0.10);
+ant.rotation.z = 0.42; ant.rotation.x = -0.25;
+add(head, new THREE.SphereGeometry(0.026, 10, 8), redMat, -0.245, 0.39, -0.145);
+var hood = add(head, new THREE.TorusGeometry(0.235, 0.028, 10, 28, 2.4), suitMat, 0, 0.14, 0);
+hood.rotation.x = Math.PI / 2; hood.rotation.z = -1.2;
+add(head, new THREE.CylinderGeometry(0.035, 0.035, 0.52, 12), trimMat, 0, 0.10, 0).rotation.z = Math.PI / 2;
+
+/* helmet lamp — the flare in the photo */
+var lamp = new THREE.Group(); lamp.position.set(0, 0.24, 0.14); head.add(lamp);
+add(lamp, new THREE.CylinderGeometry(0.045, 0.055, 0.09, 14), trimMat, 0, 0, 0).rotation.x = 1.25;
+var bulb = add(lamp, new THREE.SphereGeometry(0.035, 14, 10),
+  new THREE.MeshBasicMaterial({ color: 0xffffff }), 0, 0.02, 0.05);
+bulb.castShadow = false;
+var flareSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: flareTexture(), color: 0xdfefff, transparent: true, depthWrite: false,
+  blending: THREE.AdditiveBlending, opacity: 0.85
+}));
+flareSprite.scale.set(1.15, 1.15, 1);
+flareSprite.position.set(0, 0.02, 0.08);
+lamp.add(flareSprite);
+
+var lampLight = new THREE.SpotLight(0xfff4e2, 3.2, 34, 0.62, 0.45, 1.2);
+lampLight.position.set(0, 0.02, 0.06);
+lamp.add(lampLight);
+lamp.add(lampLight.target);
+lampLight.target.position.set(0, -0.15, 3);
+
+/* limbs */
+function limb(parent, side, isLeg) {
+  var root = new THREE.Group();
+  parent.add(root);
+  var upLen = isLeg ? 0.44 : 0.35, loLen = isLeg ? 0.42 : 0.33;
+  var rad = isLeg ? 0.115 : 0.092;
+  var upper = new THREE.Group(); root.add(upper);
+  add(upper, new THREE.CylinderGeometry(rad, rad * 0.93, upLen, 16), suitMat, 0, -upLen / 2, 0);
+  add(upper, new THREE.SphereGeometry(rad * 1.05, 16, 12), suitMat, 0, 0, 0);
+  for (var i = 0; i < 2; i++) {
+    var rg = add(upper, new THREE.TorusGeometry(rad * 0.99, 0.021, 8, 18), suitSoft, 0, -upLen * (0.45 + i * 0.2), 0);
+    rg.rotation.x = Math.PI / 2;
+  }
+  if (!isLeg) {
+    var st = add(upper, new THREE.TorusGeometry(rad * 1.02, 0.016, 8, 18), redMat, 0, -upLen * 0.20, 0);
+    st.rotation.x = Math.PI / 2;
+    var st2 = add(upper, new THREE.TorusGeometry(rad * 1.02, 0.010, 8, 18), blueMat, 0, -upLen * 0.30, 0);
+    st2.rotation.x = Math.PI / 2;
+  }
+  var lower = new THREE.Group(); lower.position.y = -upLen; upper.add(lower);
+  add(lower, new THREE.SphereGeometry(rad * 0.98, 16, 12), suitSoft, 0, 0, 0);
+  add(lower, new THREE.CylinderGeometry(rad * 0.92, rad * 0.86, loLen, 16), suitMat, 0, -loLen / 2, 0);
+  for (var j = 0; j < 2; j++) {
+    var rg2 = add(lower, new THREE.TorusGeometry(rad * 0.94, 0.019, 8, 18), suitSoft, 0, -loLen * (0.25 + j * 0.22), 0);
+    rg2.rotation.x = Math.PI / 2;
+  }
+  var end = new THREE.Group(); end.position.y = -loLen; lower.add(end);
+  if (isLeg) {
+    add(end, roundedBox(0.17, 0.12, 0.30, 0.05, 3), darkMat, 0, -0.05, 0.05);
+    add(end, new THREE.BoxGeometry(0.175, 0.03, 0.30), new THREE.MeshStandardMaterial(
+      { color: 0x15171c, roughness: 0.95 }), 0, -0.105, 0.05);
+    var cuff = add(end, new THREE.TorusGeometry(rad * 0.93, 0.022, 8, 18), trimMat, 0, 0.01, 0);
+    cuff.rotation.x = Math.PI / 2;
+    /* knee pad on the lower leg above the boot */
+    var kp = add(lower, roundedBox(0.19, 0.16, 0.06, 0.03, 3), suitSoft, 0, -loLen * 0.12, rad * 0.86);
+    kp.rotation.x = 0.12;
+  } else {
+    var cf = add(end, new THREE.TorusGeometry(rad * 0.95, 0.026, 8, 18), blueMat, 0, 0.0, 0);
+    cf.rotation.x = Math.PI / 2;
+    var gl = add(end, new THREE.SphereGeometry(rad * 1.02, 16, 12), suitMat, 0, -0.07, 0.01);
+    gl.scale.set(1, 1.2, 1.05);
+    add(end, roundedBox(0.10, 0.09, 0.05, 0.02, 2), suitSoft, side * 0.045, -0.11, 0.05);
+    /* thumb + finger ridge so the glove reads as a hand */
+    var th = add(end, new THREE.SphereGeometry(rad * 0.34, 10, 8), suitMat, -side * rad * 0.9, -0.10, 0.04);
+    th.scale.set(1, 1.5, 1);
+    for (var fg = 0; fg < 3; fg++) {
+      var fr = add(end, new THREE.TorusGeometry(rad * 0.55, 0.011, 6, 14), suitSoft, 0, -0.135 - fg * 0.012, 0.03 + fg * 0.018);
+      fr.rotation.x = 1.2;
+    }
+  }
+  return { root: root, upper: upper, lower: lower, end: end };
+}
+
+var shoulderY = 1.38, hipY = 0.92;
+var armL = limb(body, -1, false), armR = limb(body, 1, false);
+armL.root.position.set(-0.36, shoulderY, 0); armR.root.position.set(0.36, shoulderY, 0);
+add(body, new THREE.SphereGeometry(0.15, 18, 14), suitMat, -0.34, shoulderY, 0).scale.set(1, 0.9, 1);
+add(body, new THREE.SphereGeometry(0.15, 18, 14), suitMat, 0.34, shoulderY, 0).scale.set(1, 0.9, 1);
+
+var legL = limb(body, -1, true), legR = limb(body, 1, true);
+legL.root.position.set(-0.16, hipY, 0); legR.root.position.set(0.16, hipY, 0);
+
+astro.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+scene.add(astro);
+
+/* ============================================================
+   6b. SECOND SKIN — the wanderer (same rig, different figure)
+   ============================================================ */
+var skinNow = 'astro';
+var coatMat = new THREE.MeshStandardMaterial({ color: 0x2a303c, roughness: 0.88, metalness: 0.0 });
+var coatDark = new THREE.MeshStandardMaterial({ color: 0x1b1f27, roughness: 0.92, metalness: 0.0 });
+var furMat = new THREE.MeshStandardMaterial({ color: 0x4a4f5a, roughness: 0.97, metalness: 0.0 });
+var sashMat = new THREE.MeshStandardMaterial({ color: 0xe9edf4, roughness: 0.78, metalness: 0.0 });
+var skinMat = new THREE.MeshStandardMaterial({ color: 0xd7a87d, roughness: 0.78, metalness: 0.0 });
+var hairMat = new THREE.MeshStandardMaterial({ color: 0xb59058, roughness: 0.86, metalness: 0.0 });
+
+function addW(parent, geo, mat, x, y, z) {
+  var m = new THREE.Mesh(geo, mat);
+  m.position.set(x || 0, y || 0, z || 0);
+  m.castShadow = true; m.receiveShadow = true;
+  m.userData.skin = 'wander';
+  m.visible = false;
+  parent.add(m);
+  return m;
+}
+
+(function buildWanderer() {
+  /* everything built so far belongs to the suit */
+  astro.traverse(function (o) {
+    if ((o.isMesh || o.isSprite || o.isLight) && !o.userData.skin) o.userData.skin = 'astro';
+  });
+
+  /* coat */
+  addW(torso, roundedBox(0.37, 0.62, 0.25, 0.10, 4), coatMat, 0, 0.26, 0);
+  addW(torso, new THREE.SphereGeometry(0.20, 20, 14), coatMat, 0, 0.06, 0).scale.set(1.0, 0.8, 0.86);
+  /* flared skirt of the coat */
+  var skirt = addW(torso, new THREE.CylinderGeometry(0.185, 0.30, 0.44, 20, 1, true), coatMat, 0, -0.14, 0);
+  skirt.material.side = THREE.DoubleSide;
+  /* sash */
+  addW(torso, roundedBox(0.40, 0.085, 0.28, 0.03, 3), sashMat, 0, 0.06, 0);
+  /* fur collar */
+  var col = addW(torso, new THREE.TorusGeometry(0.155, 0.068, 10, 24), furMat, 0, 0.52, 0);
+  col.rotation.x = Math.PI / 2; col.scale.z = 0.85;
+  /* pack on the back */
+  addW(torso, roundedBox(0.26, 0.30, 0.14, 0.05, 3), coatDark, 0, 0.30, -0.19);
+
+  /* head: face, hair, hood */
+  addW(head, new THREE.SphereGeometry(0.135, 20, 16), skinMat, 0, 0.05, 0.01).scale.set(0.94, 1.06, 0.96);
+  var hair = addW(head, new THREE.SphereGeometry(0.152, 20, 16), hairMat, 0, 0.07, -0.012);
+  hair.scale.set(1.04, 1.02, 1.05);
+  addW(head, new THREE.SphereGeometry(0.115, 16, 12), hairMat, 0, -0.02, -0.10).scale.set(1.1, 1.5, 0.8);
+  var hood = addW(head, new THREE.SphereGeometry(0.178, 20, 16, 0, 6.3, 0, 1.75), coatDark, 0, 0.05, -0.035);
+  hood.scale.set(1.0, 1.0, 1.05);
+
+  /* sleeves and mittens */
+  function arm(L) {
+    addW(L.upper, new THREE.CylinderGeometry(0.078, 0.070, 0.35, 12), coatMat, 0, -0.175, 0);
+    addW(L.upper, new THREE.SphereGeometry(0.098, 12, 10), coatMat, 0, 0.01, 0);
+    addW(L.lower, new THREE.CylinderGeometry(0.073, 0.066, 0.33, 12), coatMat, 0, -0.165, 0);
+    var cuff = addW(L.lower, new THREE.TorusGeometry(0.072, 0.026, 8, 16), furMat, 0, -0.30, 0);
+    cuff.rotation.x = Math.PI / 2;
+    addW(L.end, new THREE.SphereGeometry(0.082, 12, 10), coatDark, 0, -0.06, 0.01).scale.set(1, 1.25, 1.1);
+  }
+  arm(armL); arm(armR);
+
+  /* legs and boots */
+  function leg(L) {
+    addW(L.upper, new THREE.CylinderGeometry(0.098, 0.088, 0.44, 12), coatDark, 0, -0.22, 0);
+    addW(L.lower, new THREE.CylinderGeometry(0.085, 0.076, 0.42, 12), coatDark, 0, -0.21, 0);
+    addW(L.end, roundedBox(0.145, 0.11, 0.26, 0.045, 3), furMat, 0, -0.05, 0.04);
+    var top = addW(L.end, new THREE.TorusGeometry(0.085, 0.030, 8, 16), furMat, 0, 0.01, 0);
+    top.rotation.x = Math.PI / 2;
+  }
+  leg(legL); leg(legR);
+})();
+
+function setSkin(n) {
+  skinNow = n;
+  astro.traverse(function (o) {
+    if (o.userData && o.userData.skin) o.visible = (o.userData.skin === n);
+  });
+}
+
+
+var footAnchorL = new THREE.Object3D(); footAnchorL.position.set(0, -0.10, 0.04); legL.end.add(footAnchorL);
+var footAnchorR = new THREE.Object3D(); footAnchorR.position.set(0, -0.10, 0.04); legR.end.add(footAnchorR);
+var headAnchor = new THREE.Object3D(); headAnchor.position.set(0, 0.06, 0); head.add(headAnchor);
+
+/* ============================================================
+   7. PARTICLES
+   ============================================================ */
+/* falling snow */
+var flakeMat, flakes;
+(function buildFlakes() {
+  var N = Q.flakes;
+  var pos = new Float32Array(N * 3), seed = new Float32Array(N * 3);
+  var AREA = 60;
+  for (var i = 0; i < N; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * AREA;
+    pos[i * 3 + 1] = Math.random() * AREA;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * AREA;
+    seed[i * 3] = Math.random(); seed[i * 3 + 1] = Math.random(); seed[i * 3 + 2] = Math.random();
+  }
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 3));
+  flakeMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, fog: false,
+    uniforms: {
+      uTime: { value: 0 }, uCam: { value: new THREE.Vector3() }, uArea: { value: AREA },
+      uWind: { value: 1.0 }, uFall: { value: 1.0 }, uAmt: { value: 1.0 }, uPix: { value: 1 }
+    },
+    vertexShader: [
+      'attribute vec3 aSeed; uniform float uTime,uArea,uWind,uFall,uAmt,uPix; uniform vec3 uCam;',
+      'varying float vA; varying float vS;',
+      'void main(){',
+      '  vec3 p = position;',
+      '  float t = uTime;',
+      '  float sway = 0.9 + aSeed.x*1.6;',
+      '  p.x += sin(t*(0.4+aSeed.y*0.7) + aSeed.z*24.0)*sway + uWind*t*1.6*(0.6+aSeed.z*0.8);',
+      '  p.z += cos(t*(0.35+aSeed.x*0.6) + aSeed.y*19.0)*sway + uWind*t*0.7;',
+      '  p.y -= t*uFall*(0.55 + aSeed.z*1.5);',
+      '  vec3 rel = p - uCam - vec3(0.0, 6.0, 0.0);',
+      '  rel = mod(rel + uArea*0.5, uArea) - uArea*0.5;',
+      '  vec3 wp = uCam + vec3(0.0,6.0,0.0) + rel;',
+      '  vec4 mv = viewMatrix * vec4(wp,1.0);',
+      '  float d = -mv.z;',
+      '  vS = aSeed.z;',
+      '  vA = smoothstep(0.5,3.0,d) * (1.0-smoothstep(22.0,38.0,d)) * uAmt;',
+      '  gl_PointSize = clamp((0.35+aSeed.x*0.85) * uPix * (7.5/max(d,0.6)), 0.6, 9.0);',
+      '  gl_Position = projectionMatrix * mv;',
+      '}'
+    ].join('\n'),
+    fragmentShader: [
+      'varying float vA; varying float vS;',
+      'void main(){',
+      '  vec2 p = gl_PointCoord-0.5; float d = length(p);',
+      '  float a = smoothstep(0.5,0.06,d)*vA;',
+      '  if(a<0.01) discard;',
+      '  vec3 c = mix(vec3(0.78,0.86,1.0), vec3(1.0), vS);',
+      '  gl_FragColor = vec4(c, a*0.62);',
+      '}'
+    ].join('\n')
+  });
+  flakes = new THREE.Points(g, flakeMat);
+  flakes.frustumCulled = false;
+  scene.add(flakes);
+})();
+
+/* kicked-up powder */
+var PUFF_N = 900;
+var puffPos = new Float32Array(PUFF_N * 3);
+var puffVel = new Float32Array(PUFF_N * 3);
+var puffLife = new Float32Array(PUFF_N);
+var puffSize = new Float32Array(PUFF_N);
+var puffCursor = 0;
+var puffGeo = new THREE.BufferGeometry();
+puffGeo.setAttribute('position', new THREE.BufferAttribute(puffPos, 3));
+puffGeo.setAttribute('aLife', new THREE.BufferAttribute(puffLife, 1));
+puffGeo.setAttribute('aSize', new THREE.BufferAttribute(puffSize, 1));
+var puffMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, fog: false,
+  uniforms: { uPix: { value: 1 } },
+  vertexShader: [
+    'attribute float aLife; attribute float aSize; uniform float uPix;',
+    'varying float vL;',
+    'varying float vN;',
+    'void main(){ vL = aLife;',
+    '  vec4 mv = modelViewMatrix * vec4(position,1.0);',
+    '  float d = max(-mv.z, 0.4);',
+    '  vN = smoothstep(0.5, 2.4, d);',
+    '  gl_PointSize = clamp(aSize*uPix*(1.0+(1.0-aLife)*2.4) * (26.0/d), 1.0, 64.0*uPix);',
+    '  gl_Position = projectionMatrix*mv; }'
+  ].join('\n'),
+  fragmentShader: [
+    'varying float vL; varying float vN;',
+    'void main(){ vec2 p=gl_PointCoord-0.5; float d=length(p);',
+    '  float a = smoothstep(0.5,0.02,d)*vL*0.55*vN;',
+    '  if(a<0.008) discard;',
+    '  gl_FragColor = vec4(mix(vec3(0.72,0.80,0.95), vec3(1.0), vL), a); }'
+  ].join('\n')
+});
+var puffs = new THREE.Points(puffGeo, puffMat);
+puffs.frustumCulled = false;
+scene.add(puffs);
+
+function spawnPuff(x, y, z, vx, vy, vz, size, n) {
+  for (var i = 0; i < n; i++) {
+    var k = puffCursor++ % PUFF_N;
+    puffPos[k * 3] = x + (Math.random() - 0.5) * 0.22;
+    puffPos[k * 3 + 1] = y + Math.random() * 0.12;
+    puffPos[k * 3 + 2] = z + (Math.random() - 0.5) * 0.22;
+    puffVel[k * 3] = vx + (Math.random() - 0.5) * 0.9;
+    puffVel[k * 3 + 1] = vy + Math.random() * 0.7;
+    puffVel[k * 3 + 2] = vz + (Math.random() - 0.5) * 0.9;
+    puffLife[k] = 1;
+    puffSize[k] = size * (0.6 + Math.random() * 0.9);
+  }
+}
+function updatePuffs(dt, grav) {
+  var back = (typeof rew !== 'undefined' && rew.on);
+  if (back) { dt = -dt * 2.6; grav = -grav; }
+  for (var i = 0; i < PUFF_N; i++) {
+    if (puffLife[i] <= 0) continue;
+    puffLife[i] -= dt * 0.62;
+    if (back) puffLife[i] = Math.min(1, puffLife[i]);
+    if (puffLife[i] < 0) { puffLife[i] = 0; continue; }
+    puffVel[i * 3 + 1] -= grav * 0.16 * dt;
+    puffVel[i * 3] *= (1 - dt * 1.6);
+    puffVel[i * 3 + 2] *= (1 - dt * 1.6);
+    puffPos[i * 3] += puffVel[i * 3] * dt;
+    puffPos[i * 3 + 1] += puffVel[i * 3 + 1] * dt;
+    puffPos[i * 3 + 2] += puffVel[i * 3 + 2] * dt;
+  }
+  puffGeo.attributes.position.needsUpdate = true;
+  puffGeo.attributes.aLife.needsUpdate = true;
+  puffGeo.attributes.aSize.needsUpdate = true;
+}
+
+/* ground drift sheets */
+var driftMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+  blending: THREE.NormalBlending,
+  uniforms: { uTime: { value: 0 }, uAmt: { value: 1 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} ',
+  fragmentShader: [
+    'precision highp float; varying vec2 vUv; uniform float uTime,uAmt;',
+    'float h(vec2 p){p=fract(p*vec2(127.31,311.7));p+=dot(p,p+33.3);return fract(p.x*p.y);}',
+    'float nz(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);',
+    ' return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}',
+    'float fb(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*nz(p);p*=2.2;a*=.5;}return s;}',
+    'void main(){',
+    '  vec2 uv = vUv*vec2(5.0,2.0) + vec2(-uTime*0.42, 0.0);',
+    '  float n = fb(uv);',
+    '  float a = smoothstep(0.48,0.85,n) * (1.0-vUv.y) * 0.30 * uAmt;',
+    '  a *= smoothstep(0.0,0.2,vUv.x)*smoothstep(1.0,0.8,vUv.x);',
+    '  gl_FragColor = vec4(vec3(0.86,0.91,1.0), a);',
+    '}'
+  ].join('\n')
+});
+var drifts = [];
+for (var dfi = 0; dfi < 3; dfi++) {
+  var dp = new THREE.Mesh(new THREE.PlaneGeometry(46, 2.6, 1, 1), driftMat);
+  scene.add(dp);
+  drifts.push(dp);
+}
+
+/* ============================================================
+   8. POST — bloom, grade, grain
+   ============================================================ */
+var SS = Q.ss;
+function makeRT(w, h, type) {
+  return new THREE.WebGLRenderTarget(Math.max(2, Math.floor(w)), Math.max(2, Math.floor(h)), {
+    minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+    format: THREE.RGBAFormat, type: type || THREE.UnsignedByteType,
+    depthBuffer: type !== undefined ? true : false, stencilBuffer: false
+  });
+}
+var sceneRT, bloomA, bloomB;
+function allocRTs() {
+  var w = renderer.domElement.width * SS, h = renderer.domElement.height * SS;
+  if (sceneRT) { sceneRT.dispose(); bloomA.dispose(); bloomB.dispose(); }
+  sceneRT = new THREE.WebGLRenderTarget(Math.floor(w), Math.floor(h), {
+    minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+    format: THREE.RGBAFormat, type: THREE.HalfFloatType, depthBuffer: true, stencilBuffer: false
+  });
+  bloomA = makeRT(w / 2, h / 2);
+  bloomB = makeRT(w / 2, h / 2);
+}
+
+var fsScene = new THREE.Scene();
+var fsCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+var fsMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null);
+fsMesh.frustumCulled = false;
+fsScene.add(fsMesh);
+var FS_VS = 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }';
+
+var brightMat = new THREE.ShaderMaterial({
+  uniforms: { tIn: { value: null }, uThresh: { value: 1.05 } },
+  vertexShader: FS_VS,
+  fragmentShader: [
+    'varying vec2 vUv; uniform sampler2D tIn; uniform float uThresh;',
+    'void main(){ vec3 c = texture2D(tIn,vUv).rgb;',
+    '  float l = dot(c, vec3(0.2126,0.7152,0.0722));',
+    '  float k = max(0.0, l-uThresh)/max(l,0.0001);',
+    '  gl_FragColor = vec4(c*k*smoothstep(0.0,0.45,l), 1.0); }'
+  ].join('\n')
+});
+var blurMat = new THREE.ShaderMaterial({
+  uniforms: { tIn: { value: null }, uDir: { value: new THREE.Vector2(1, 0) }, uRes: { value: new THREE.Vector2(1, 1) } },
+  vertexShader: FS_VS,
+  fragmentShader: [
+    'varying vec2 vUv; uniform sampler2D tIn; uniform vec2 uDir, uRes;',
+    'void main(){',
+    '  vec2 t = uDir/uRes;',
+    '  vec3 s = texture2D(tIn,vUv).rgb*0.2270270;',
+    '  s += (texture2D(tIn,vUv+t*1.3846).rgb + texture2D(tIn,vUv-t*1.3846).rgb)*0.3162162;',
+    '  s += (texture2D(tIn,vUv+t*3.2307).rgb + texture2D(tIn,vUv-t*3.2307).rgb)*0.0702702;',
+    '  gl_FragColor = vec4(s,1.0); }'
+  ].join('\n')
+});
+var compMat = new THREE.ShaderMaterial({
+  uniforms: {
+    tScene: { value: null }, tBloom: { value: null },
+    uBloom: { value: 0.62 }, uTime: { value: 0 }, uVig: { value: 1.0 }, uExp: { value: 0.70 },
+    uSunUV: { value: new THREE.Vector2(0.5, 1.4) }, uSunAmt: { value: 0 }, uFrost: { value: 0.25 }
+  },
+  vertexShader: FS_VS,
+  fragmentShader: [
+    'precision highp float;',
+    'varying vec2 vUv; uniform sampler2D tScene, tBloom;',
+    'uniform float uBloom, uTime, uVig, uExp, uSunAmt, uFrost;',
+    'uniform vec2 uSunUV;',
+    'float fh(vec2 p){p=fract(p*vec2(127.31,311.7));p+=dot(p,p+33.3);return fract(p.x*p.y);}',
+    'float fn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);',
+    ' return mix(mix(fh(i),fh(i+vec2(1,0)),f.x),mix(fh(i+vec2(0,1)),fh(i+vec2(1,1)),f.x),f.y);}',
+    'vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0); }',
+    'void main(){',
+    '  vec2 d = vUv-0.5; float r2 = dot(d,d);',
+    '  float ca = 0.0007 + r2*0.0026;',
+    '  vec3 c;',
+    '  c.r = texture2D(tScene, vUv + d*ca).r;',
+    '  c.g = texture2D(tScene, vUv).g;',
+    '  c.b = texture2D(tScene, vUv - d*ca).b;',
+    '  vec3 b = texture2D(tBloom, vUv).rgb;',
+    '  c += b*uBloom;',
+    '  if(uSunAmt > 0.002){',
+    '    vec2 sd = (uSunUV - vUv)*0.30;',
+    '    vec3 shaft = vec3(0.0);',
+    '    for(int i=0;i<10;i++){ float fi=float(i)/10.0;',
+    '      shaft += texture2D(tBloom, vUv + sd*fi).rgb * (1.0-fi); }',
+    '    c += shaft * 0.11 * uSunAmt * vec3(1.0,0.95,0.88);',
+    '  }',
+    '  c *= uExp;',
+    '  c = aces(c);',
+    '  c = mix(c, c*vec3(0.90,0.97,1.14), 0.55);',
+    '  c = mix(vec3(dot(c,vec3(0.299,0.587,0.114))), c, 1.12);',                  // cool the shadows
+    '  c = pow(c, vec3(0.98,1.0,1.02));',
+    '  float fr = smoothstep(0.20,0.62,r2)*uFrost;',
+    '  if(fr > 0.004){',
+    '    float fn1 = fn(vUv*26.0), fn2 = fn(vUv*70.0+3.1);',
+    '    float crys = smoothstep(0.55,0.95,fn1*0.65+fn2*0.45);',
+    '    c = mix(c, c*1.04 + vec3(0.10,0.16,0.26)*crys, fr*0.55);',
+    '  }',
+    '  float vig = smoothstep(0.95,0.22,r2*1.6);',
+    '  c *= mix(1.0, vig, uVig*0.8);',
+    '  float g = fract(sin(dot(vUv*vec2(1.0+uTime*0.0001,1.0), vec2(12.9898,78.233)))*43758.5453);',
+    '  c += (g-0.5)*0.018;',
+    '  c = pow(max(c,0.0), vec3(1.0/2.2));',
+    '  gl_FragColor = vec4(c,1.0);',
+    '}'
+  ].join('\n')
+});
+
+function blit(mat, target) {
+  fsMesh.material = mat;
+  renderer.setRenderTarget(target || null);
+  renderer.render(fsScene, fsCam);
+}
+
+/* ============================================================
+   9. AUDIO — synthesised, no assets
+   ============================================================ */
+var AC = null, windGain = null, master = null, audioOn = true;
+var slideGain = null, humGain = null, humOsc = null;
+function initAudio() {
+  if (AC) return;
+  var Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  AC = new Ctx();
+  master = AC.createGain(); master.gain.value = 0.55; master.connect(AC.destination);
+  var len = AC.sampleRate * 3;
+  var buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+  for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.5;
+  var src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
+  var lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 0.6;
+  var hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 80;
+  windGain = AC.createGain(); windGain.gain.value = 0.05;
+  src.connect(lp); lp.connect(hp); hp.connect(windGain); windGain.connect(master);
+  src.start();
+
+  /* snow hissing under a sled */
+  var s2 = AC.createBufferSource(); s2.buffer = buf; s2.loop = true;
+  var bp2 = AC.createBiquadFilter(); bp2.type = 'bandpass';
+  bp2.frequency.value = 2400; bp2.Q.value = 0.7;
+  slideGain = AC.createGain(); slideGain.gain.value = 0;
+  s2.connect(bp2); bp2.connect(slideGain); slideGain.connect(master);
+  s2.start();
+
+  /* the sound of snow being held up by nothing */
+  humOsc = AC.createOscillator(); humOsc.type = 'sawtooth'; humOsc.frequency.value = 48;
+  var hf = AC.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 380; hf.Q.value = 6;
+  humGain = AC.createGain(); humGain.gain.value = 0;
+  humOsc.connect(hf); hf.connect(humGain); humGain.connect(master);
+  humOsc.start();
+}
+function whoosh(vol, low, high) {
+  if (!AC || !audioOn) return;
+  var dur = 0.45, len = Math.floor(AC.sampleRate * dur);
+  var buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+  for (var i = 0; i < len; i++) {
+    var t = i / len;
+    d[i] = (Math.random() * 2 - 1) * Math.sin(t * Math.PI) * 0.9;
+  }
+  var src = AC.createBufferSource(); src.buffer = buf;
+  var bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.1;
+  bp.frequency.setValueAtTime(low || 300, AC.currentTime);
+  bp.frequency.exponentialRampToValueAtTime(high || 2400, AC.currentTime + dur);
+  var g = AC.createGain(); g.gain.value = vol * 0.5;
+  src.connect(bp); bp.connect(g); g.connect(master);
+  src.start();
+}
+function crunch(vol) {
+  if (!AC || !audioOn) return;
+  var dur = 0.20, len = Math.floor(AC.sampleRate * dur);
+  var buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+  for (var i = 0; i < len; i++) {
+    var t = i / len;
+    var grain = (Math.random() < 0.05) ? 2.4 : 0.55;
+    d[i] = (Math.random() * 2 - 1) * grain * Math.pow(1 - t, 2.6);
+  }
+  var src = AC.createBufferSource(); src.buffer = buf;
+  var bp = AC.createBiquadFilter(); bp.type = 'bandpass';
+  bp.frequency.value = 1500 + Math.random() * 1400; bp.Q.value = 0.8;
+  var g = AC.createGain(); g.gain.value = vol * 0.5;
+  src.connect(bp); bp.connect(g); g.connect(master);
+  src.start();
+}
+function thump(vol) {
+  if (!AC || !audioOn) return;
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(120, AC.currentTime);
+  o.frequency.exponentialRampToValueAtTime(38, AC.currentTime + 0.22);
+  g.gain.setValueAtTime(vol * 0.5, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0008, AC.currentTime + 0.30);
+  o.connect(g); g.connect(master); o.start(); o.stop(AC.currentTime + 0.32);
+  crunch(vol * 1.4);
+}
+
+/* ============================================================
+   10. PLAYER + CAMERA
+   ============================================================ */
+var player = {
+  pos: new THREE.Vector3(0, 0, 0),
+  vel: new THREE.Vector3(),
+  yaw: 0, lean: 0,
+  onGround: true, sink: 0, sinkV: 0,
+  grav: G_MOON,
+  stepPhase: 0, lastFoot: 1, airTime: 0, landShake: 0, bob: 0, turn: 0, headPrev: 0
+};
+var cam = { yaw: 0, pitch: -0.12, dist: 5.4, distGoal: 5.4, fp: false, shake: 0 };
+var keys = {};
+var snowfall = 0.55, lampOn = true;
+var wantDash = false, wantThrow = false, wantSlam = false, gatherHeld = false;
+
+window.addEventListener('keydown', function (e) {
+  if (e.repeat) { keys[e.code] = true; return; }
+  keys[e.code] = true;
+  if (e.code === 'KeyV') { cam.fp = !cam.fp; }
+  if (e.code === 'KeyL') { lampOn = !lampOn; }
+
+  if (e.code === 'KeyM') { audioOn = !audioOn; if (windGain) windGain.gain.value = audioOn ? 0.05 : 0; }
+  if (e.code === 'KeyN') {
+    snowfall = snowfall > 0.9 ? 0 : (snowfall < 0.1 ? 0.55 : 1.15);
+  }
+
+  if (e.code === 'KeyB') toggleBossMode();
+  if (e.code === 'Minus' || e.code === 'NumpadSubtract') cam.distGoal = clamp(cam.distGoal + 1.1, 2.2, 16);
+  if (e.code === 'Equal' || e.code === 'NumpadAdd') cam.distGoal = clamp(cam.distGoal - 1.1, 2.2, 16);
+  if (e.code === 'KeyQ') wantDash = true;
+  if (e.code === 'KeyR') castShock();
+  if (e.code === 'KeyT') castPillar();
+  if (e.code === 'KeyZ') castWall();
+  if (e.code === 'KeyJ') castSpikes();
+  if (e.code === 'KeyE') wantThrow = true;
+  if (e.code === 'KeyX') wantSlam = true;
+  if (e.code === 'KeyG') gatherHeld = true;
+  if (e.code === 'Space') e.preventDefault();
+});
+window.addEventListener('keyup', function (e) {
+  keys[e.code] = false;
+  if (e.code === 'KeyG') gatherHeld = false;
+});
+window.addEventListener('blur', function () { keys = {}; gatherHeld = false; });
+document.addEventListener('contextmenu', function (e) { if (started) e.preventDefault(); });
+document.addEventListener('mousedown', function (e) {
+  if (!started || document.pointerLockElement !== renderer.domElement) return;
+  if (e.button === 2) gatherHeld = true;
+  else if (e.button === 0) wantThrow = true;
+  else if (e.button === 1) { wantSlam = true; e.preventDefault(); }
+});
+document.addEventListener('mouseup', function (e) {
+  if (e.button === 2) gatherHeld = false;
+});
+
+function tryLock() {
+  if (isTouch || !renderer.domElement.requestPointerLock) return;
+  try { renderer.domElement.requestPointerLock(); } catch (e) { /* not supported */ }
+}
+renderer.domElement.addEventListener('click', function () {
+  if (!started) return;
+  if (!document.pointerLockElement) tryLock();
+});
+document.addEventListener('mousemove', function (e) {
+  if (document.pointerLockElement !== renderer.domElement) return;
+  cam.yaw -= e.movementX * 0.0022;
+  cam.pitch = clamp(cam.pitch - e.movementY * 0.0019, -1.15, 0.72);
+});
+window.addEventListener('wheel', function (e) {
+  cam.distGoal = clamp(cam.distGoal + e.deltaY * 0.0035, 2.2, 16);
+}, { passive: true });
+
+/* touch: left half drives, right half looks, two fingers on the right zoom */
+var runLatch = false;
+var touchMove = null, touchLook = null, pinch = null;
+function halfOf(t) { return t.clientX < window.innerWidth * 0.5 ? 'L' : 'R'; }
+
+renderer.domElement.addEventListener('touchstart', function (e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (halfOf(t) === 'L') {
+      if (!touchMove) {
+        touchMove = { id: t.identifier, x0: t.clientX, y0: t.clientY, dx: 0, dy: 0 };
+        stickEl.style.left = (t.clientX - 59) + 'px';
+        stickEl.style.bottom = (window.innerHeight - t.clientY - 59) + 'px';
+      }
+    } else if (!touchLook) {
+      touchLook = { id: t.identifier, x: t.clientX, y: t.clientY };
+    } else if (!pinch) {
+      /* a second finger on the look side pinches the camera in and out */
+      pinch = { a: touchLook.id, b: t.identifier,
+        ax: touchLook.x, ay: touchLook.y, bx: t.clientX, by: t.clientY, d: 0 };
+      pinch.d = Math.hypot(pinch.ax - pinch.bx, pinch.ay - pinch.by);
+    }
+  }
+  e.preventDefault();
+}, { passive: false });
+
+renderer.domElement.addEventListener('touchmove', function (e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (touchMove && t.identifier === touchMove.id) {
+      touchMove.dx = clamp((t.clientX - touchMove.x0) / 62, -1, 1);
+      touchMove.dy = clamp((t.clientY - touchMove.y0) / 62, -1, 1);
+      stickKnob.style.transform = 'translate(' + (touchMove.dx * 34) + 'px,' + (touchMove.dy * 34) + 'px)';
+      var far = Math.hypot(touchMove.dx, touchMove.dy) > 0.88;
+      if (!runLatch) keys['ShiftLeft'] = far;
+      stickEl.classList.toggle('fast', far || runLatch);
+      continue;
+    }
+    if (pinch && (t.identifier === pinch.a || t.identifier === pinch.b)) {
+      if (t.identifier === pinch.a) { pinch.ax = t.clientX; pinch.ay = t.clientY; }
+      else { pinch.bx = t.clientX; pinch.by = t.clientY; }
+      var nd = Math.hypot(pinch.ax - pinch.bx, pinch.ay - pinch.by);
+      if (pinch.d > 0) cam.distGoal = clamp(cam.distGoal - (nd - pinch.d) * 0.032, 2.2, 16);
+      pinch.d = nd;
+      if (touchLook && t.identifier === pinch.a) { touchLook.x = t.clientX; touchLook.y = t.clientY; }
+      continue;
+    }
+    if (touchLook && t.identifier === touchLook.id && !pinch) {
+      cam.yaw -= (t.clientX - touchLook.x) * 0.006;
+      cam.pitch = clamp(cam.pitch - (t.clientY - touchLook.y) * 0.005, -1.15, 0.72);
+      touchLook.x = t.clientX; touchLook.y = t.clientY;
+    }
+  }
+  e.preventDefault();
+}, { passive: false });
+
+function touchEnd(e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (touchMove && t.identifier === touchMove.id) {
+      touchMove = null;
+      if (!runLatch) keys['ShiftLeft'] = false;
+      stickEl.classList.remove('fast');
+      stickKnob.style.transform = '';
+      stickEl.style.left = '26px'; stickEl.style.bottom = '26px';
+    }
+    if (pinch && (t.identifier === pinch.a || t.identifier === pinch.b)) pinch = null;
+    if (touchLook && t.identifier === touchLook.id) touchLook = null;
+  }
+}
+renderer.domElement.addEventListener('touchend', touchEnd);
+renderer.domElement.addEventListener('touchcancel', touchEnd);
+
+
+/* ============================================================
+   10b. ABILITIES — dash, sled, telekinesis
+   ============================================================ */
+var tmpDir = new THREE.Vector3(), tmpA = new THREE.Vector3();
+
+/* --- aim: march the view ray until it meets the snow --- */
+var aimHit = new THREE.Vector3(), aimValid = false, aimDist = 0;
+function updateAim() {
+  var o = camera.position, d = camera.getWorldDirection(tmpDir);
+  var hx = null, hz = null, t = 0.4;
+  for (var i = 0; i < 80; i++) {
+    var nt = t + 0.7;
+    if (nt > 52) break;
+    if (o.y + d.y * nt <= groundAt(o.x + d.x * nt, o.z + d.z * nt)) {
+      var lo = t, hi = nt, mid;
+      for (var k = 0; k < 9; k++) {
+        mid = (lo + hi) * 0.5;
+        if (o.y + d.y * mid <= groundAt(o.x + d.x * mid, o.z + d.z * mid)) hi = mid; else lo = mid;
+      }
+      hx = o.x + d.x * hi; hz = o.z + d.z * hi;
+      break;
+    }
+    t = nt;
+  }
+  if (hx === null) {
+    /* looking at the sky — take the snow ahead of you instead */
+    var fl = Math.sqrt(d.x * d.x + d.z * d.z) || 1;
+    hx = player.pos.x + d.x / fl * 14; hz = player.pos.z + d.z / fl * 14;
+  }
+  var dx = hx - player.pos.x, dz = hz - player.pos.z;
+  var L = Math.sqrt(dx * dx + dz * dz);
+  if (L > 24) { hx = player.pos.x + dx / L * 24; hz = player.pos.z + dz / L * 24; L = 24; }
+  aimHit.set(hx, groundAt(hx, hz), hz);
+  aimDist = L;
+  aimValid = Math.abs(hx - defOriginX) < HALF - 4 && Math.abs(hz - defOriginZ) < HALF - 4;
+}
+
+/* --- the levitating mass of snow --- */
+var ORB_N = 700;
+var orbGeo = new THREE.BufferGeometry();
+(function () {
+  var pos = new Float32Array(ORB_N * 3), sd = new Float32Array(ORB_N);
+  for (var i = 0; i < ORB_N; i++) {
+    var u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u);
+    var len = 0.35 + Math.random() * 0.65;
+    pos[i * 3] = Math.cos(th) * r * len;
+    pos[i * 3 + 1] = u * len;
+    pos[i * 3 + 2] = Math.sin(th) * r * len;
+    sd[i] = Math.random();
+  }
+  orbGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  orbGeo.setAttribute('aSeed', new THREE.BufferAttribute(sd, 1));
+})();
+var orbMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, fog: false,
+  uniforms: {
+    uTime: { value: 0 }, uCenter: { value: new THREE.Vector3() },
+    uRad: { value: 1 }, uPix: { value: 1 }, uAmt: { value: 1 }, uSpin: { value: 1 }
+  },
+  vertexShader: [
+    'attribute float aSeed; uniform float uTime,uRad,uPix,uAmt,uSpin; uniform vec3 uCenter;',
+    'varying float vS;',
+    'void main(){',
+    '  vec3 d = normalize(position);',
+    '  float len = length(position);',
+    '  float a = uTime*(0.9+aSeed*2.4)*uSpin + aSeed*37.0;',
+    '  float ca=cos(a), sa=sin(a);',
+    '  vec3 r = vec3(d.x*ca - d.z*sa, d.y + sin(uTime*2.0+aSeed*19.0)*0.18, d.x*sa + d.z*ca);',
+    '  float pulse = 0.72 + 0.28*sin(uTime*3.1 + aSeed*23.0);',
+    '  vec3 wp = uCenter + r * uRad * len * pulse;',
+    '  vec4 mv = viewMatrix * vec4(wp,1.0);',
+    '  vS = aSeed;',
+    '  gl_PointSize = (1.1+aSeed*2.4) * uPix * (22.0/max(-mv.z,0.5)) * uAmt;',
+    '  gl_Position = projectionMatrix * mv;',
+    '}'
+  ].join('\n'),
+  fragmentShader: [
+    'varying float vS;',
+    'void main(){ vec2 p=gl_PointCoord-0.5; float d=length(p);',
+    '  float a = smoothstep(0.5,0.04,d)*0.85;',
+    '  if(a<0.01) discard;',
+    '  gl_FragColor = vec4(mix(vec3(0.72,0.84,1.0), vec3(1.0), vS), a); }'
+  ].join('\n')
+});
+var orbPts = new THREE.Points(orbGeo, orbMat);
+orbPts.frustumCulled = false;
+orbPts.visible = false;
+scene.add(orbPts);
+
+var orbGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: flareTexture(), color: 0x7fc4ff, transparent: true, depthWrite: false,
+  blending: THREE.AdditiveBlending, opacity: 0.5
+}));
+orbGlow.visible = false;
+scene.add(orbGlow);
+
+var aimRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.62, 0.80, 44),
+  new THREE.MeshBasicMaterial({
+    color: 0x9fd8ff, transparent: true, opacity: 0.45, side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  })
+);
+aimRing.rotation.x = -Math.PI / 2;
+aimRing.visible = false;
+scene.add(aimRing);
+
+var orb = {
+  active: false, held: false, mass: 0, life: 0,
+  pos: new THREE.Vector3(), vel: new THREE.Vector3()
+};
+var digTimer = 0, trailTimer = 0;
+
+function orbImpact() {
+  var x = orb.pos.x, z = orb.pos.z, m = orb.mass;
+  if (typeof bossHit === 'function') bossHit(14 + 46 * m, 4 + 8 * m, x, z, 2.6 + m * 1.6);
+  if (Math.abs(x - defOriginX) < HALF - 4 && Math.abs(z - defOriginZ) < HALF - 4) {
+    /* the snow lands as a real drift you can climb */
+    stampPrint(x, z, 0, 0.35 + 0.65 * m, 3, 0.75 + m * 1.15);
+    carveAdd(x, z, 1.5 * (0.75 + m * 1.15), 0, 0.30 + 0.60 * m);
+    packAdd(x, z, 1.6 + m * 1.8, -0.55);          // dumped snow is loose again
+  }
+  var gy = groundAt(x, z);
+  spawnPuff(x, gy + 0.2, z, 0, 2.2 + m * 2.4, 0, 2.4 + m * 2.2, Math.floor(40 + m * 90));
+  for (var i = 0; i < 10; i++) {
+    var a = Math.random() * Math.PI * 2, sp = 2.5 + Math.random() * 4 * (0.4 + m);
+    spawnPuff(x, gy + 0.15, z, Math.cos(a) * sp, 1.2, Math.sin(a) * sp, 1.5 + m, 5);
+  }
+  cam.shake = Math.max(cam.shake, 0.35 + m * 0.6);
+  thump(0.35 + m * 0.5);
+  orb.active = false; orb.held = false; orb.mass = 0;
+}
+
+function updateTelekinesis(dt) {
+  updateAim();
+
+  /* gather: pull snow up out of the ground */
+  if (gatherHeld && aimValid && orb.mass < 1 && (!orb.active || orb.held)) {
+    if (!orb.active) { orb.active = true; orb.pos.copy(aimHit).add(tmpA.set(0, 1.2, 0)); whoosh(0.25, 900, 260); }
+    orb.held = true;
+    orb.mass = Math.min(1, orb.mass + dt * 0.62);
+    digTimer += dt;
+    if (digTimer > 0.06) {
+      digTimer = 0;
+      var ds = 0.5 + orb.mass * 0.55;
+      stampPrint(aimHit.x, aimHit.z, Math.random() * 6.28, 0.10, 2, ds);
+      carveAdd(aimHit.x, aimHit.z, 1.15 * ds, 0.085, 0);
+      packAdd(aimHit.x, aimHit.z, 1.0 * ds, 0.05);
+      /* snow streaming up into the orb */
+      var a = Math.random() * Math.PI * 2, rr = Math.random() * ds;
+      var px = aimHit.x + Math.cos(a) * rr, pz = aimHit.z + Math.sin(a) * rr;
+      spawnPuff(px, aimHit.y + 0.1, pz,
+        (orb.pos.x - px) * 1.5, 2.2 + orb.mass * 1.5, (orb.pos.z - pz) * 1.5, 0.8, 3);
+    }
+  }
+  if (!gatherHeld) digTimer = 0;
+
+  if (orb.active && orb.held) {
+    /* the held mass tracks wherever you look */
+    var ty = (aimValid ? aimHit.y : groundAt(orb.pos.x, orb.pos.z)) + 1.5 + orb.mass * 0.9;
+    tmpA.set(aimValid ? aimHit.x : orb.pos.x, ty, aimValid ? aimHit.z : orb.pos.z);
+    orb.pos.lerp(tmpA, 1 - Math.exp(-7 * dt));
+  }
+
+  if (wantThrow) {
+    wantThrow = false;
+    if (orb.active && orb.held && orb.mass > 0.04) {
+      orb.held = false; orb.life = 0;
+      camera.getWorldDirection(tmpDir);
+      if (aimValid && aimHit.distanceTo(orb.pos) > 7) {
+        tmpDir.copy(aimHit).sub(orb.pos).normalize();
+        tmpDir.y += 0.16;
+        tmpDir.normalize();
+      }
+      var sp = 27 - 9 * orb.mass;
+      orb.vel.copy(tmpDir).multiplyScalar(sp);
+      whoosh(0.5, 260, 2600);
+    }
+  }
+  if (wantSlam) {
+    wantSlam = false;
+    if (orb.active && orb.held) { orb.held = false; orb.life = 0; orb.vel.set(0, -42, 0); whoosh(0.45, 1800, 200); }
+  }
+
+  /* flight */
+  if (orb.active && !orb.held) {
+    orb.life += dt;
+    orb.vel.y -= player.grav * 0.6 * dt;
+    orb.pos.addScaledVector(orb.vel, dt);
+    trailTimer += dt;
+    if (trailTimer > 0.03) {
+      trailTimer = 0;
+      spawnPuff(orb.pos.x, orb.pos.y, orb.pos.z, -orb.vel.x * 0.06, 0.1, -orb.vel.z * 0.06, 1.0 + orb.mass, 3);
+    }
+    if (boss && Math.hypot(orb.pos.x - boss.x, orb.pos.z - boss.z) < 3.0 * boss.scale &&
+        orb.pos.y < boss.y + 7 * boss.scale && orb.pos.y > boss.y) orbImpact();
+    else if (orb.pos.y <= groundAt(orb.pos.x, orb.pos.z) + 0.15) orbImpact();
+    else if (orb.life > 6) {
+      spawnPuff(orb.pos.x, orb.pos.y, orb.pos.z, 0, 0, 0, 1.5, 20);
+      orb.active = false; orb.mass = 0;
+    }
+  }
+
+  /* visuals */
+  orbPts.visible = orbGlow.visible = orb.active;
+  if (orb.active) {
+    var rad = 0.55 + orb.mass * 1.35;
+    orbMat.uniforms.uCenter.value.copy(orb.pos);
+    orbMat.uniforms.uRad.value = rad;
+    orbMat.uniforms.uAmt.value = 0.5 + orb.mass * 0.9;
+    orbMat.uniforms.uSpin.value = orb.held ? 1.0 : 2.4;
+    orbGlow.position.copy(orb.pos);
+    orbGlow.scale.setScalar(rad * 3.2);
+    orbGlow.material.opacity = 0.18 + orb.mass * 0.30;
+  }
+  SNOW_UNIFORMS.uOrbPos.value.copy(orb.pos);
+  SNOW_UNIFORMS.uOrbAmt.value = orb.active ? (0.5 + orb.mass * 1.5) : 0;
+
+  aimRing.visible = aimValid && (gatherHeld || (orb.active && orb.held));
+  if (aimRing.visible) {
+    aimRing.position.set(aimHit.x, aimHit.y + 0.05, aimHit.z);
+    var pulse = 1 + Math.sin(performance.now() * 0.006) * 0.07;
+    aimRing.scale.setScalar((0.8 + orb.mass * 0.7) * pulse);
+  }
+  if (humGain) humGain.gain.value = (orb.active && orb.held && audioOn) ? 0.02 + orb.mass * 0.10 : 0;
+  if (humOsc) humOsc.frequency.value = 44 + orb.mass * 26;
+}
+
+
+/* --- vortex: hold A and the field comes up around you --- */
+var tor = { on: false, amt: 0, charge: 1, hold: 0, dig: 0, tick: 0 };
+var vortPts, vortMat, vortShell, vortShellMat, vortCore, vortCoreMat, vortGlow;
+(function buildVortex() {
+  var N = 2400;
+  var seed = new Float32Array(N * 3), pos = new Float32Array(N * 3);
+  for (var i = 0; i < N; i++) {
+    seed[i * 3] = Math.random(); seed[i * 3 + 1] = Math.random(); seed[i * 3 + 2] = Math.random();
+  }
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 3));
+  vortMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, fog: false,
+    uniforms: { uTime: { value: 0 }, uAmt: { value: 0 }, uPix: { value: 1 }, uCentre: { value: new THREE.Vector3() } },
+    vertexShader: [
+      "attribute vec3 aSeed; uniform float uTime,uAmt,uPix; uniform vec3 uCentre;",
+      "varying float vA; varying float vS;",
+      "void main(){",
+      "  float H = 17.0;",
+      "  float y = mod(aSeed.z*H + uTime*(1.7+aSeed.y*2.6), H);",
+      "  float t = y/H;",
+      "  float rad = (0.30 + aSeed.y*1.35) * (0.55 + 0.85*t*t) + 1.6*pow(1.0-t, 6.0);",
+      "  float ang = aSeed.x*6.2831 + uTime*(4.6 - t*2.2);",
+      "  vec3 wp = uCentre + vec3(cos(ang)*rad, y*uAmt + 0.06, sin(ang)*rad);",
+      "  vec4 mv = viewMatrix * vec4(wp,1.0);",
+      "  vS = aSeed.y;",
+      "  vA = uAmt * (1.0 - t*0.5) * smoothstep(0.3, 2.2, -mv.z);",
+      "  gl_PointSize = clamp((0.7+aSeed.y*2.1)*uPix*(22.0/max(-mv.z,0.4)), 1.0, 34.0*uPix);",
+      "  gl_Position = projectionMatrix * mv;",
+      "}"
+    ].join("\n"),
+    fragmentShader: [
+      "varying float vA; varying float vS;",
+      "void main(){ vec2 p = gl_PointCoord-0.5; float d = length(p);",
+      "  float a = smoothstep(0.5,0.03,d)*vA*0.75;",
+      "  if(a<0.01) discard;",
+      "  gl_FragColor = vec4(mix(vec3(0.74,0.84,1.0), vec3(1.0), vS), a); }"
+    ].join("\n")
+  });
+  vortPts = new THREE.Points(g, vortMat);
+  vortPts.frustumCulled = false; vortPts.visible = false;
+  scene.add(vortPts);
+
+  vortShellMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+    uniforms: { uTime: { value: 0 }, uAmt: { value: 0 } },
+    vertexShader: "varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
+    fragmentShader: [
+      "precision highp float; varying vec2 vUv; uniform float uTime,uAmt;",
+      "float h(vec2 p){p=fract(p*vec2(127.31,311.7));p+=dot(p,p+33.3);return fract(p.x*p.y);}",
+      "float nz(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);",
+      " return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}",
+      "float fb(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*nz(p);p*=2.3;a*=.5;}return s;}",
+      "void main(){",
+      "  vec2 uv = vec2(vUv.x*7.0 - uTime*1.9, vUv.y*2.4 - uTime*1.15);",
+      "  float n = fb(uv);",
+      "  float a = smoothstep(0.42,0.92,n) * uAmt * 0.42;",
+      "  a *= smoothstep(0.0,0.18,vUv.y) * smoothstep(1.0,0.55,vUv.y);",
+      "  gl_FragColor = vec4(vec3(0.88,0.93,1.0)*a, a);",
+      "}"
+    ].join("\n")
+  });
+  vortShell = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 1.15, 17.0, 44, 1, true), vortShellMat);
+  vortShell.visible = false;
+  scene.add(vortShell);
+
+  /* the lit core of the column */
+  vortCoreMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: { uTime: { value: 0 }, uAmt: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader: [
+      'precision highp float; varying vec2 vUv; uniform float uTime,uAmt;',
+      'float h(vec2 p){p=fract(p*vec2(127.31,311.7));p+=dot(p,p+33.3);return fract(p.x*p.y);}',
+      'float nz(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);',
+      ' return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}',
+      'void main(){',
+      '  float n = nz(vec2(vUv.x*5.0 - uTime*2.6, vUv.y*3.0 - uTime*1.6));',
+      '  float a = (0.45 + 0.55*n) * uAmt;',
+      '  a *= smoothstep(0.0,0.10,vUv.y) * smoothstep(1.0,0.35,vUv.y);',
+      '  gl_FragColor = vec4(vec3(0.90,0.96,1.0)*a*0.55, a*0.55);',
+      '}'
+    ].join('\n')
+  });
+  vortCore = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 0.55, 17.0, 28, 1, true), vortCoreMat);
+  vortCore.visible = false;
+  scene.add(vortCore);
+
+  vortGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: flareTexture(), color: 0xdff0ff, transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending, opacity: 0
+  }));
+  vortGlow.visible = false;
+  scene.add(vortGlow);
+})();
+
+function updateVortex(dt) {
+  var want = tor.hold > 0.04 && tor.charge > 0.05 && downT <= 0;
+  tor.on = want;
+  tor.amt = damp(tor.amt, want ? 1 : 0, want ? 3.2 : 4.5, dt);
+  if (want) tor.charge = Math.max(0, tor.charge - dt * 0.21);
+  else tor.charge = Math.min(1, tor.charge + dt * 0.15);
+
+  vortPts.visible = vortShell.visible = vortCore.visible = vortGlow.visible = tor.amt > 0.02;
+  if (tor.amt <= 0.02) return;
+
+  var gx = player.pos.x, gz = player.pos.z, gy = groundAt(gx, gz);
+  vortMat.uniforms.uCentre.value.set(gx, gy, gz);
+  vortMat.uniforms.uAmt.value = tor.amt;
+  vortShell.position.set(gx, gy + 8.5 * tor.amt, gz);
+  vortCore.position.set(gx, gy + 8.5 * tor.amt, gz);
+  vortCore.scale.set(1, Math.max(0.05, tor.amt), 1);
+  vortCoreMat.uniforms.uAmt.value = tor.amt;
+  vortGlow.position.set(gx, gy + 0.8, gz);
+  vortGlow.scale.setScalar(9 * tor.amt);
+  vortGlow.material.opacity = 0.30 * tor.amt;
+  vortShell.scale.set(1, Math.max(0.05, tor.amt), 1);
+  vortShellMat.uniforms.uAmt.value = tor.amt;
+  if (!tor.on) return;
+
+  /* it really does lift the snow and throw it out to the rim */
+  tor.dig += dt;
+  if (tor.dig > 0.07) {
+    tor.dig = 0;
+    var a1 = Math.random() * 6.2831, r1 = 1.0 + Math.random() * 2.3;
+    var dx = gx + Math.cos(a1) * r1, dz = gz + Math.sin(a1) * r1;
+    stampPrint(dx, dz, a1, 0.14 * tor.amt, 2, 0.55);
+    carveAdd(dx, dz, 0.63, 0.11 * tor.amt, 0);
+    packAdd(dx, dz, 0.9, 0.06);
+    var a2 = Math.random() * 6.2831, r2 = 4.2 + Math.random() * 1.4;
+    var mx = gx + Math.cos(a2) * r2, mz = gz + Math.sin(a2) * r2;
+    stampPrint(mx, mz, 0, 0.10 * tor.amt, 3, 0.45);
+    carveAdd(mx, mz, 0.67, 0, 0.10 * tor.amt);
+    spawnPuff(dx, groundAt(dx, dz) + 0.1, dz,
+      -Math.sin(a1) * 5, 3.5 + Math.random() * 3, Math.cos(a1) * 5, 1.3, 3);
+  }
+  for (var i = 0; i < 2; i++) {
+    var a3 = Math.random() * 6.2831, r3 = 2.4 + Math.random() * 2.2;
+    spawnPuff(gx + Math.cos(a3) * r3, gy + 0.1, gz + Math.sin(a3) * r3,
+      -Math.sin(a3) * 7 * tor.amt, 1.4, Math.cos(a3) * 7 * tor.amt, 1.5, 2);
+  }
+  cam.shake = Math.max(cam.shake, 0.10 * tor.amt);
+  if (slideGain && audioOn) slideGain.gain.value = Math.max(slideGain.gain.value, 0.11 * tor.amt);
+
+  for (var k = shots.length - 1; k >= 0; k--) {
+    var sh = shots[k];
+    if (Math.hypot(sh.x - gx, sh.z - gz) < 4.0 && sh.y < gy + 8) {
+      spawnPuff(sh.x, sh.y, sh.z, 0, 3, 0, 2.0, 24);
+      sh.mesh.visible = false; shots.splice(k, 1);
+      whoosh(0.35, 1600, 400);
+    }
+  }
+  tor.tick += dt;
+  if (tor.tick > 0.3) { tor.tick = 0; if (boss) bossHit(5, 1.5, gx, gz, 5.0); }
+}
+
+/* --- rewind: hold F and every mark in the snow un-makes itself --- */
+var rew = { on: false, amt: 0 };
+function updateRewind(dt) {
+  rew.on = !!keys["KeyF"] && !menuOpen;
+  rew.amt = damp(rew.amt, rew.on ? 1 : 0, 6, dt);
+  if (!rew.on) return;
+  healQuad.material.uniforms.uRate.value = 9 / 255;
+  renderer.autoClear = false;
+  renderer.setRenderTarget(deformRT);
+  renderer.render(healScene, defCam);
+  renderer.setRenderTarget(null);
+  renderer.autoClear = true;
+  var d = dt * 2.4;
+  for (var i = 0; i < carveR.length; i++) {
+    if (carveR[i] > 0) carveR[i] = Math.max(0, carveR[i] - d);
+    if (carveG[i] > 0) carveG[i] = Math.max(0, carveG[i] - d * 0.8);
+    if (packGrid[i] > 0) packGrid[i] = Math.max(0, packGrid[i] - d * 0.5);
+  }
+  if (Math.random() < dt * 8) whoosh(0.18, 2400, 300);
+}
+
+/* --- ice spikes: a crystal thicket punched up out of the pack --- */
+var spikeMat = new THREE.MeshStandardMaterial({
+  color: 0xbfe4ff, roughness: 0.10, metalness: 0.16,
+  transparent: true, opacity: 0.86, flatShading: true
+});
+var spikeClusters = [], SPIKE_SETS = 4;
+function makeSpikeCluster() {
+  var g = new THREE.Group();
+  for (var i = 0; i < 11; i++) {
+    var hgt = 1.1 + Math.random() * 2.6;
+    var m = new THREE.Mesh(new THREE.ConeGeometry(0.16 + Math.random() * 0.30, hgt, 5), spikeMat);
+    var a = Math.random() * 6.2831, r = Math.random() * 1.9;
+    m.position.set(Math.cos(a) * r, hgt * 0.42, Math.sin(a) * r);
+    m.rotation.z = (Math.random() - 0.5) * 0.55;
+    m.rotation.x = (Math.random() - 0.5) * 0.55;
+    m.castShadow = true; m.receiveShadow = true;
+    g.add(m);
+  }
+  g.visible = false;
+  scene.add(g);
+  return { g: g, t: 0, life: 0 };
+}
+function castSpikes() {
+  if (ab.spikes > 0 || !aimValid) return;
+  ab.spikes = 3.6; castT = 0.4; castKind = 1;
+  if (!spikeClusters.length) for (var i = 0; i < SPIKE_SETS; i++) spikeClusters.push(makeSpikeCluster());
+  var best = spikeClusters[0];
+  for (var k = 1; k < spikeClusters.length; k++) if (spikeClusters[k].life < best.life) best = spikeClusters[k];
+  var x = aimHit.x, z = aimHit.z;
+  best.g.position.set(x, groundAt(x, z) - 0.35, z);
+  best.g.rotation.y = Math.random() * 6.28;
+  best.g.visible = true; best.t = 0; best.life = 26;
+  stampPrint(x, z, 0, 0.55, 3, 0.9);
+  carveAdd(x, z, 1.35, 0, 0.35);
+  packAdd(x, z, 2.4, 0.85);
+  for (var j = 0; j < 30; j++) {
+    var a2 = Math.random() * 6.2831, rr = Math.random() * 2.2;
+    spawnPuff(x + Math.cos(a2) * rr, groundAt(x, z) + 0.2, z + Math.sin(a2) * rr,
+      Math.cos(a2) * 3, 4 + Math.random() * 4, Math.sin(a2) * 3, 1.5, 3);
+  }
+  whoosh(0.6, 2600, 700); thump(0.5);
+  cam.shake = Math.max(cam.shake, 0.4);
+  if (typeof bossHit === 'function') bossHit(22, 7, x, z, 3.2);
+}
+function updateSpikes(dt) {
+  for (var i = 0; i < spikeClusters.length; i++) {
+    var c = spikeClusters[i];
+    if (!c.g.visible) continue;
+    c.t += dt; c.life -= dt;
+    var grow = clamp(c.t / 0.28, 0, 1);
+    c.g.scale.set(1, grow * (1 + 0.12 * Math.sin(c.t * 9) * (1 - grow)), 1);
+    if (c.life < 2.5) c.g.scale.y *= clamp(c.life / 2.5, 0, 1);
+    if (c.life <= 0) c.g.visible = false;
+  }
+}
+
+/* --- shaped snow: blast, pillar, wall --- */
+var ab = { shock: 0, pillar: 0, wall: 0, spikes: 0 };
+var castT = 0, castKind = 0;
+
+function castShock() {
+  if (ab.shock > 0) return;
+  ab.shock = 3.0; castT = 0.45; castKind = 0;
+  var x = player.pos.x, z = player.pos.z, g = groundAt(x, z);
+  for (var i = 0; i < 16; i++) {
+    var a = i / 16 * Math.PI * 2, r = 2.7;
+    var bx = x + Math.cos(a) * r, bz = z + Math.sin(a) * r;
+    stampPrint(bx, bz, a, 0.75, 1, 1.6);
+    packAdd(bx, bz, 2.2, 0.55);
+    spawnPuff(bx, g + 0.2, bz, Math.cos(a) * 10, 2.4, Math.sin(a) * 10, 2.3, 7);
+  }
+  packAdd(x, z, 3.2, 0.7);
+  cam.shake = Math.max(cam.shake, 0.85);
+  thump(0.9); whoosh(0.7, 180, 1700);
+  if (typeof bossHit === 'function') bossHit(16, 14, x, z, 3.2);
+}
+
+function castPillar() {
+  if (ab.pillar > 0 || !aimValid) return;
+  ab.pillar = 2.2; castT = 0.4; castKind = 1;
+  var x = aimHit.x, z = aimHit.z, g = groundAt(x, z);
+  stampPrint(x, z, 0, 1.0, 3, 0.50);
+  carveAdd(x, z, 0.75, 0, 1.0);
+  packAdd(x, z, 1.4, 0.4);
+  for (var i = 0; i < 26; i++) {
+    var a = Math.random() * 6.28, r = Math.random() * 1.1;
+    spawnPuff(x + Math.cos(a) * r, g + 0.2, z + Math.sin(a) * r,
+      Math.cos(a) * 1.2, 5 + Math.random() * 4, Math.sin(a) * 1.2, 1.6, 3);
+  }
+  whoosh(0.5, 200, 1400); thump(0.4);
+  var pd = Math.hypot(player.pos.x - x, player.pos.z - z);
+  if (pd < 2.0) { player.vel.y = Math.max(player.vel.y, 3 + 5 / Math.max(player.grav, 1.6)); player.onGround = false; }
+  if (typeof bossHit === 'function') bossHit(10, 6, x, z, 3.4);
+}
+
+function castWall() {
+  if (ab.wall > 0 || !aimValid) return;
+  ab.wall = 4.0; castT = 0.4; castKind = 2;
+  var dx = aimHit.x - player.pos.x, dz = aimHit.z - player.pos.z;
+  var L = Math.sqrt(dx * dx + dz * dz) || 1;
+  var px = -dz / L, pz = dx / L;
+  for (var i = -3; i <= 3; i++) {
+    var f = 1 - Math.abs(i) / 4.2;
+    var x = aimHit.x + px * i * 1.45, z = aimHit.z + pz * i * 1.45;
+    stampPrint(x, z, 0, 0.9 * f, 3, 0.62);
+    carveAdd(x, z, 0.93, 0, 0.9 * f);
+    packAdd(x, z, 1.3, 0.3);
+    spawnPuff(x, groundAt(x, z) + 0.2, z, 0, 3.5, 0, 1.5, 6);
+  }
+  whoosh(0.45, 260, 1200); thump(0.35);
+}
+
+/* --- dash + sled state --- */
+var dashT = 0, dashCd = 0, dashHit = false, dashDir = new THREE.Vector3(0, 0, 1);
+var sledding = false, sledT = 0, trenchTimer = 0;
+
+function startDash(wx, wz) {
+  if (Math.abs(wx) + Math.abs(wz) < 0.01) { wx = Math.sin(player.yaw); wz = Math.cos(player.yaw); }
+  var l = Math.sqrt(wx * wx + wz * wz);
+  dashDir.set(wx / l, 0, wz / l);
+  dashT = 0.30; dashCd = 1.5; dashHit = false;
+  player.yaw = Math.atan2(dashDir.x, dashDir.z);
+  cam.shake = Math.max(cam.shake, 0.25);
+  whoosh(0.55, 420, 2100);
+  var g = groundAt(player.pos.x, player.pos.z);
+  for (var i = 0; i < 14; i++) {
+    spawnPuff(player.pos.x, g + 0.15, player.pos.z,
+      -dashDir.x * (3 + Math.random() * 5) + (Math.random() - 0.5) * 3, 1.2 + Math.random() * 1.6,
+      -dashDir.z * (3 + Math.random() * 5) + (Math.random() - 0.5) * 3, 1.7, 3);
+  }
+}
+
+/* a continuous groove behind a dash or a sled run — and it packs the snow,
+   so your own lines become the fast route across the field */
+function carveTrail(dt, spd, depth, size) {
+  trenchTimer += dt;
+  if (trenchTimer < 0.045) return;
+  trenchTimer = 0;
+  var x = player.pos.x, z = player.pos.z;
+  var yaw = (Math.abs(player.vel.x) + Math.abs(player.vel.z) > 0.2)
+    ? Math.atan2(player.vel.x, player.vel.z) : player.yaw;
+  var fast = clamp(spd / 5.5, 0, 1.7);
+  stampPrint(x, z, yaw, depth * (0.85 + 0.55 * fast), 4, size * (1 + 0.85 * fast));
+  carveAdd(x, z, 0.78 * size * (1 + 0.85 * fast), 0.13 * depth * (0.85 + 0.55 * fast), 0);
+  packAdd(x, z, 0.95 * size, 0.24);
+  /* everything the edge displaces has to go somewhere: it rolls up into a berm,
+     bigger on the outside of the turn */
+  if (fast > 0.18) {
+    var rx = Math.cos(yaw), rz = -Math.sin(yaw);
+    for (var sgn = -1; sgn <= 1; sgn += 2) {
+      var outer = (sgn === (player.turn > 0 ? -1 : 1));
+      var w = (outer ? 1.0 : 0.38) * fast;
+      var bsz = 0.62 + 0.42 * fast;
+      var off = (1.25 + 0.85 * fast) * size * sgn;
+      var bx = x + rx * off, bz = z + rz * off;
+      stampPrint(bx, bz, 0, 0.85 * w, 3, bsz);
+      carveAdd(bx, bz, 1.5 * bsz, 0, 0.85 * w);
+      packAdd(bx, bz, 1.0, -0.25);
+    }
+  }
+  var g = groundAt(x, z);
+  for (var i = 0; i < 2; i++) {
+    var side = i ? 1 : -1;
+    spawnPuff(x - Math.sin(yaw) * 0.25, g + 0.10, z - Math.cos(yaw) * 0.25,
+      Math.cos(yaw) * side * (1.0 + spd * 0.26), 0.7 + spd * 0.09,
+      -Math.sin(yaw) * side * (1.0 + spd * 0.26), 1.0 + spd * 0.05, 3);
+  }
+  if (Math.random() < 0.35) crunch(clamp(0.10 + spd * 0.03, 0, 0.6));
+}
+
+/* slope of the snow under a point, for sledding */
+function slopeAt(x, z, out) {
+  var e = 0.9;
+  out.x = (groundAt(x + e, z) - groundAt(x - e, z)) / (2 * e);
+  out.z = (groundAt(x, z + e) - groundAt(x, z - e)) / (2 * e);
+  return out;
+}
+
+
+/* ============================================================
+   10c. COLOSSUS — boss mode
+   ============================================================ */
+var bossMode = false, wave = 0, bannerT = 0, spawnDelay = 0;
+var playerHP = 100, hurtT = 0, downT = 0;
+
+var iceMat = new THREE.MeshStandardMaterial({ color: 0x93b2da, roughness: 0.58, metalness: 0.12 });
+var iceDeep = new THREE.MeshStandardMaterial({ color: 0x4f6d9e, roughness: 0.42, metalness: 0.2 });
+var eyeMat = new THREE.MeshBasicMaterial({ color: 0x8ff0ff });
+
+var boss = null;
+
+function buildColossus() {
+  var g = new THREE.Group();
+  var parts = {};
+  function put(parent, geo, mat, x, y, z) {
+    var m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+    parent.add(m); return m;
+  }
+  var body = new THREE.Group(); g.add(body); parts.body = body;
+
+  var torso = new THREE.Group(); torso.position.y = 3.5; body.add(torso); parts.torso = torso;
+  put(torso, roundedBox(3.3, 3.2, 2.3, 0.7, 4), iceMat, 0, 0.2, 0);
+  put(torso, new THREE.SphereGeometry(1.35, 20, 14), iceMat, 0, 1.5, 0).scale.set(1.2, 0.85, 1.0);
+  /* shards across the back */
+  for (var i = 0; i < 7; i++) {
+    var c = put(torso, new THREE.ConeGeometry(0.30, 1.5 + Math.random(), 6), iceDeep,
+      (Math.random() - 0.5) * 2.4, 0.6 + Math.random() * 1.6, -1.05 - Math.random() * 0.3);
+    c.rotation.x = -1.0 - Math.random() * 0.5;
+    c.rotation.z = (Math.random() - 0.5) * 0.6;
+  }
+  var head = new THREE.Group(); head.position.set(0, 2.4, 0.15); torso.add(head); parts.head = head;
+  put(head, new THREE.SphereGeometry(0.95, 22, 16), iceMat, 0, 0, 0).scale.set(1.0, 0.95, 1.1);
+  put(head, new THREE.SphereGeometry(0.17, 10, 8), eyeMat, -0.35, 0.1, 0.82);
+  put(head, new THREE.SphereGeometry(0.17, 10, 8), eyeMat, 0.35, 0.1, 0.82);
+  for (var j = 0; j < 4; j++) {
+    var h = put(head, new THREE.ConeGeometry(0.16, 0.9, 5), iceDeep, -0.6 + j * 0.4, 0.75, -0.2);
+    h.rotation.x = -0.35; h.rotation.z = (j - 1.5) * 0.22;
+  }
+
+  function limb(px, isArm) {
+    var root = new THREE.Group();
+    root.position.set(px, isArm ? 1.15 : 3.35, 0);
+    (isArm ? torso : body).add(root);
+    var up = new THREE.Group(); root.add(up);
+    var L = isArm ? 2.0 : 1.70, R = isArm ? 0.52 : 0.64;
+    put(up, new THREE.CylinderGeometry(R, R * 0.9, L, 14), iceMat, 0, -L / 2, 0);
+    put(up, new THREE.SphereGeometry(R * 1.08, 14, 10), iceMat, 0, 0, 0);
+    var lo = new THREE.Group(); lo.position.y = -L; up.add(lo);
+    var L2 = isArm ? 1.9 : 1.45;
+    put(lo, new THREE.CylinderGeometry(R * 0.92, R * 0.8, L2, 14), iceMat, 0, -L2 / 2, 0);
+    var end = new THREE.Group(); end.position.y = -L2; lo.add(end);
+    if (isArm) put(end, new THREE.SphereGeometry(R * 1.25, 14, 10), iceMat, 0, -0.2, 0);
+    else put(end, roundedBox(1.25, 0.55, 1.9, 0.22, 3), iceDeep, 0, -0.25, 0.25);
+    return { root: root, up: up, lo: lo, end: end };
+  }
+  parts.armL = limb(-2.0, true); parts.armR = limb(2.0, true);
+  parts.legL = limb(-0.95, false); parts.legR = limb(0.95, false);
+  g.visible = false;
+  scene.add(g);
+  return { g: g, p: parts };
+}
+var colossus = null;
+
+function spawnBoss() {
+  if (!colossus) colossus = buildColossus();
+  wave++;
+  var a = Math.random() * Math.PI * 2, r = 26;
+  var x = player.pos.x + Math.cos(a) * r, z = player.pos.z + Math.sin(a) * r;
+  boss = {
+    x: x, z: z, y: groundAt(x, z), vx: 0, vz: 0, vy: 0,
+    hp: 100 + (wave - 1) * 60, max: 100 + (wave - 1) * 60,
+    yaw: 0, phase: 0, state: 'walk', timer: 0, cd: 2.2, step: 0, lastFoot: 1,
+    flash: 0, scale: 1 + Math.min(0.5, (wave - 1) * 0.12)
+  };
+  colossus.g.visible = true;
+  colossus.g.scale.setScalar(boss.scale);
+  banner('WAVE ' + wave + ' — COLOSSUS RISING');
+  whoosh(0.8, 90, 900); thump(1.0);
+}
+
+function despawnBoss() {
+  boss = null;
+  if (colossus) colossus.g.visible = false;
+  for (var i = 0; i < shots.length; i++) shots[i].mesh.visible = false;
+  shots.length = 0;
+}
+
+function banner(txt) {
+  var el = document.getElementById('warn');
+  el.textContent = txt; el.classList.add('on'); bannerT = 2.6;
+}
+
+/* boulders the colossus throws */
+var shots = [], shotPool = [];
+function getShot() {
+  for (var i = 0; i < shotPool.length; i++) if (!shotPool[i].visible) return shotPool[i];
+  var m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.8, 1),
+    new THREE.MeshStandardMaterial({ color: 0xdfe9fa, roughness: 0.85, flatShading: true }));
+  m.castShadow = true; scene.add(m); shotPool.push(m);
+  return m;
+}
+
+function bossHit(dmg, knock, x, z, radius) {
+  if (!boss) return false;
+  var d = Math.hypot(boss.x - x, boss.z - z);
+  if (d > (radius || 3) + 2.2 * boss.scale) return false;
+  boss.hp -= dmg;
+  boss.flash = 1;
+  var nx = (boss.x - x) / (d || 1), nz = (boss.z - z) / (d || 1);
+  boss.vx += nx * knock; boss.vz += nz * knock;
+  for (var i = 0; i < 16; i++) {
+    spawnPuff(boss.x, boss.y + 2 + Math.random() * 3, boss.z,
+      (Math.random() - 0.5) * 6, 2 + Math.random() * 3, (Math.random() - 0.5) * 6, 1.6, 2);
+  }
+  thump(0.35);
+  if (boss.hp <= 0) killBoss();
+  return true;
+}
+
+function killBoss() {
+  var x = boss.x, z = boss.z;
+  for (var i = 0; i < 90; i++) {
+    var a = Math.random() * 6.28, sp = Math.random() * 9;
+    spawnPuff(x, groundAt(x, z) + 1 + Math.random() * 5, z,
+      Math.cos(a) * sp, Math.random() * 6, Math.sin(a) * sp, 2.6, 3);
+  }
+  for (var k = 0; k < 7; k++) {
+    var aa = k / 7 * 6.28, rr = 2.2;
+    stampPrint(x + Math.cos(aa) * rr, z + Math.sin(aa) * rr, 0, 0.9, 3, 1.2);
+    carveAdd(x + Math.cos(aa) * rr, z + Math.sin(aa) * rr, 1.8, 0, 0.85);
+  }
+  cam.shake = 1.2; thump(1.0); whoosh(0.9, 1400, 120);
+  banner('COLOSSUS DOWN');
+  despawnBoss();
+  spawnDelay = 7;
+}
+
+function hurtPlayer(dmg, kx, kz, kup) {
+  if (downT > 0 || hurtT > 0.45) return;
+  playerHP -= dmg; hurtT = 0.9;
+  player.vel.x += kx; player.vel.z += kz;
+  player.vel.y = Math.max(player.vel.y, kup || 3);
+  player.onGround = false;
+  cam.shake = Math.max(cam.shake, 0.9);
+  thump(0.7);
+  if (playerHP <= 0) {
+    playerHP = 0; downT = 2.6;
+    banner('SUIT BREACH — RESEALING');
+  }
+}
+
+function bossSlam(x, z, radius, dmg) {
+  var g = groundAt(x, z);
+  for (var i = 0; i < 20; i++) {
+    var a = i / 20 * 6.28;
+    var bx = x + Math.cos(a) * radius * 0.55, bz = z + Math.sin(a) * radius * 0.55;
+    stampPrint(bx, bz, a, 0.9, 1, 2.0);
+    packAdd(bx, bz, 2.4, 0.6);
+    spawnPuff(bx, g + 0.3, bz, Math.cos(a) * 13, 3.5, Math.sin(a) * 13, 3.0, 8);
+  }
+  carveAdd(x, z, radius * 0.16, 0.35, 0);
+  packAdd(x, z, radius * 0.7, 0.5);
+  cam.shake = Math.max(cam.shake, 1.0);
+  thump(1.0);
+  var pd = Math.hypot(player.pos.x - x, player.pos.z - z);
+  if (pd < radius && player.onGround) {
+    var nx = (player.pos.x - x) / (pd || 1), nz = (player.pos.z - z) / (pd || 1);
+    hurtPlayer(dmg, nx * 11, nz * 11, 5);
+  }
+}
+
+function updateBoss(dt) {
+  /* respawn timer between waves */
+  if (bossMode && !boss && spawnDelay > 0) {
+    spawnDelay -= dt;
+    if (spawnDelay <= 0) spawnBoss();
+  }
+  if (bannerT > 0) {
+    bannerT -= dt;
+    if (bannerT <= 0) document.getElementById('warn').classList.remove('on');
+  }
+  hurtT = Math.max(0, hurtT - dt);
+  if (downT > 0) {
+    downT -= dt;
+    if (downT <= 0) {
+      playerHP = 65;
+      var a = Math.random() * 6.28;
+      player.pos.x += Math.cos(a) * 34; player.pos.z += Math.sin(a) * 34;
+      player.pos.y = groundAt(player.pos.x, player.pos.z);
+      player.vel.set(0, 0, 0);
+    }
+  } else if (playerHP < 100) {
+    playerHP = Math.min(100, playerHP + dt * (boss ? 1.4 : 9));
+  }
+
+  /* boulders in flight */
+  for (var i = shots.length - 1; i >= 0; i--) {
+    var sh = shots[i];
+    sh.vy -= 9.0 * dt;
+    sh.x += sh.vx * dt; sh.y += sh.vy * dt; sh.z += sh.vz * dt;
+    sh.mesh.position.set(sh.x, sh.y, sh.z);
+    sh.mesh.rotation.x += dt * 3; sh.mesh.rotation.y += dt * 2.2;
+    if (Math.random() < 0.5) spawnPuff(sh.x, sh.y, sh.z, 0, 0, 0, 1.1, 1);
+    var pd = Math.hypot(sh.x - player.pos.x, sh.z - player.pos.z);
+    var hitPlayer = pd < 1.5 && Math.abs(sh.y - (player.pos.y + 1)) < 1.6;
+    if (hitPlayer || sh.y <= groundAt(sh.x, sh.z) + 0.4) {
+      stampPrint(sh.x, sh.z, 0, 0.85, 3, 1.0);
+      carveAdd(sh.x, sh.z, 1.5, 0, 0.6);
+      packAdd(sh.x, sh.z, 2.0, -0.4);
+      spawnPuff(sh.x, groundAt(sh.x, sh.z) + 0.3, sh.z, 0, 3.5, 0, 2.4, 40);
+      thump(0.5);
+      if (hitPlayer || pd < 3.2) {
+        var nx2 = (player.pos.x - sh.x) / (pd || 1), nz2 = (player.pos.z - sh.z) / (pd || 1);
+        hurtPlayer(hitPlayer ? 18 : 9, nx2 * 8, nz2 * 8, 4);
+      }
+      sh.mesh.visible = false;
+      shots.splice(i, 1);
+    }
+  }
+
+  if (!boss) return;
+  var b = boss, P = colossus.p;
+  b.flash = Math.max(0, b.flash - dt * 3);
+  b.phase = b.hp / b.max < 0.35 ? 2 : (b.hp / b.max < 0.7 ? 1 : 0);
+
+  var dx = player.pos.x - b.x, dz = player.pos.z - b.z;
+  var dist = Math.sqrt(dx * dx + dz * dz) || 0.001;
+  var wantYaw = Math.atan2(dx, dz);
+  var dy = ((wantYaw - b.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+  b.yaw += dy * Math.min(1, dt * (1.6 + b.phase * 0.7));
+
+  b.cd -= dt; b.timer -= dt;
+  var speed = (2.4 + b.phase * 1.1) * b.scale;
+
+  if (b.state === 'walk') {
+    if (dist > 7) {
+      b.vx += (dx / dist * speed - b.vx) * Math.min(1, dt * 3);
+      b.vz += (dz / dist * speed - b.vz) * Math.min(1, dt * 3);
+    } else {
+      b.vx *= 0.9; b.vz *= 0.9;
+    }
+    if (b.cd <= 0) {
+      if (dist < 9) { b.state = 'slam'; b.timer = 0.85; }
+      else if (dist > 13) { b.state = 'hurl'; b.timer = 0.7; }
+      else if (b.phase > 0) { b.state = 'charge'; b.timer = 1.1; }
+      b.cd = 3.4 - b.phase * 0.7;
+    }
+  } else if (b.state === 'slam') {
+    b.vx *= 0.82; b.vz *= 0.82;
+    if (b.timer <= 0) {
+      bossSlam(b.x + Math.sin(b.yaw) * 3.2 * b.scale, b.z + Math.cos(b.yaw) * 3.2 * b.scale,
+        9 * b.scale, 16 + b.phase * 6);
+      b.state = 'walk';
+    }
+  } else if (b.state === 'hurl') {
+    b.vx *= 0.85; b.vz *= 0.85;
+    if (b.timer <= 0) {
+      var m = getShot(); m.visible = true;
+      var sx = b.x + Math.sin(b.yaw) * 2.5, sz = b.z + Math.cos(b.yaw) * 2.5;
+      var sy = b.y + 5.5 * b.scale;
+      var lead = 0.55;
+      var tx = player.pos.x + player.vel.x * lead, tz = player.pos.z + player.vel.z * lead;
+      var fd = Math.hypot(tx - sx, tz - sz), tof = clamp(fd / 20, 0.6, 2.4);
+      shots.push({
+        mesh: m, x: sx, y: sy, z: sz,
+        vx: (tx - sx) / tof, vz: (tz - sz) / tof,
+        vy: ((player.pos.y + 1 - sy) + 0.5 * 9.0 * tof * tof) / tof
+      });
+      m.scale.setScalar(b.scale);
+      whoosh(0.5, 300, 1500);
+      b.state = 'walk';
+    }
+  } else if (b.state === 'charge') {
+    b.vx += Math.sin(b.yaw) * 16 * dt; b.vz += Math.cos(b.yaw) * 16 * dt;
+    if (b.timer <= 0) { b.state = 'walk'; }
+    if (dist < 3.4 * b.scale) {
+      var nx3 = dx / dist, nz3 = dz / dist;
+      hurtPlayer(14, nx3 * 14, nz3 * 14, 5);
+      b.state = 'walk'; b.vx *= -0.3; b.vz *= -0.3;
+    }
+  }
+
+  b.vx -= b.vx * Math.min(1, dt * 1.6);
+  b.vz -= b.vz * Math.min(1, dt * 1.6);
+  b.x += b.vx * dt; b.z += b.vz * dt;
+  b.y = damp(b.y, groundAt(b.x, b.z) - 0.15, 10, dt);
+
+  /* it walks heavily, and the snow remembers */
+  var sp = Math.hypot(b.vx, b.vz);
+  var prev = Math.sin(b.step);
+  b.step += sp * dt * 1.5 / b.scale;
+  if (sp > 0.4 && ((prev > 0 && Math.sin(b.step) <= 0) || (prev < 0 && Math.sin(b.step) >= 0))) {
+    b.lastFoot = -b.lastFoot;
+    var fx = b.x + Math.cos(b.yaw) * b.lastFoot * 1.0 * b.scale;
+    var fz = b.z - Math.sin(b.yaw) * b.lastFoot * 1.0 * b.scale;
+    stampPrint(fx, fz, b.yaw, 1.0, 1, 1.5 * b.scale);
+    carveAdd(fx, fz, 1.1 * b.scale, 0.45, 0);
+    packAdd(fx, fz, 1.8 * b.scale, 0.5);
+    spawnPuff(fx, groundAt(fx, fz) + 0.2, fz, 0, 2.0, 0, 2.0, 14);
+    thump(0.30);
+    cam.shake = Math.max(cam.shake, clamp(1.6 / Math.max(dist, 2), 0, 0.35));
+  }
+
+  /* shove the player out of its bulk */
+  if (dist < 2.6 * b.scale) {
+    var push = (2.6 * b.scale - dist);
+    player.pos.x += dx / dist * push * 0.6;
+    player.pos.z += dz / dist * push * 0.6;
+  }
+
+  /* pose */
+  colossus.g.position.set(b.x, b.y, b.z);
+  colossus.g.rotation.y = b.yaw;
+  var sw = Math.min(1, sp / 3);
+  var ph = b.step;
+  P.legL.up.rotation.x = Math.sin(ph) * 0.55 * sw;
+  P.legR.up.rotation.x = Math.sin(ph + Math.PI) * 0.55 * sw;
+  P.legL.lo.rotation.x = Math.max(0, -Math.sin(ph - 0.6)) * 0.7 * sw + 0.05;
+  P.legR.lo.rotation.x = Math.max(0, -Math.sin(ph + Math.PI - 0.6)) * 0.7 * sw + 0.05;
+  P.body.position.y = Math.abs(Math.sin(ph)) * 0.22 * sw;
+  P.torso.rotation.y = Math.sin(ph) * 0.14 * sw;
+
+  var windup = (b.state === 'slam') ? clamp(1 - b.timer / 0.85, 0, 1) : 0;
+  var reach = (b.state === 'hurl') ? clamp(1 - b.timer / 0.7, 0, 1) : 0;
+  var aUp = -2.5 * windup - 1.9 * reach;
+  P.armL.up.rotation.x = damp(P.armL.up.rotation.x, aUp + Math.sin(ph + Math.PI) * 0.45 * sw, 12, dt);
+  P.armR.up.rotation.x = damp(P.armR.up.rotation.x, aUp + Math.sin(ph) * 0.45 * sw, 12, dt);
+  P.armL.root.rotation.z = damp(P.armL.root.rotation.z, 0.22 + windup * 0.2, 10, dt);
+  P.armR.root.rotation.z = damp(P.armR.root.rotation.z, -0.22 - windup * 0.2, 10, dt);
+  P.armL.lo.rotation.x = damp(P.armL.lo.rotation.x, -0.45 - windup * 0.5, 10, dt);
+  P.armR.lo.rotation.x = damp(P.armR.lo.rotation.x, -0.45 - windup * 0.5, 10, dt);
+  P.head.rotation.x = damp(P.head.rotation.x, -0.15 + windup * 0.35, 8, dt);
+  eyeMat.color.setRGB(0.55 + b.flash, 0.94, 1.0);
+  iceMat.emissive && iceMat.emissive.setRGB(b.flash * 0.4, b.flash * 0.45, b.flash * 0.5);
+}
+
+function toggleBossMode() {
+  bossMode = !bossMode;
+  if (bossMode) { wave = 0; playerHP = 100; spawnBoss(); }
+  else { despawnBoss(); spawnDelay = 0; banner('FIELD CLEAR'); bannerT = 1.6; }
+}
+
+/* ============================================================
+   11. SIM
+   ============================================================ */
+var tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3();
+var stepCount = 0, warnTimer = 0;
+
+function updatePlayer(dt) {
+  if (keys['KeyK']) tor.hold += dt; else tor.hold = 0;
+
+  /* --- input to world-space wish direction --- */
+  var ix = 0, iz = 0;
+  if (keys['KeyW'] || keys['ArrowUp']) iz += 1;
+  if (keys['KeyS'] || keys['ArrowDown']) iz -= 1;
+  if (keys['KeyA'] || keys['ArrowLeft']) ix -= 1;
+  if (keys['KeyD'] || keys['ArrowRight']) ix += 1;
+  if (touchMove) { ix += touchMove.dx; iz -= touchMove.dy; }
+  var mag = Math.sqrt(ix * ix + iz * iz);
+  if (mag > 1) { ix /= mag; iz /= mag; mag = 1; }
+
+  var sin = Math.sin(cam.yaw), cos = Math.cos(cam.yaw);
+  var wishX = ix * cos + iz * sin;
+  var wishZ = -ix * sin + iz * cos;
+
+  /* --- snow state under the boots --- */
+  var packed = packAt(player.pos.x, player.pos.z);
+  var loose = 1 - packed;
+  var sprint = (keys['ShiftLeft'] || keys['ShiftRight']) ? 1 : 0;
+
+  /* Deep powder swallows the boots; a beaten track hands the speed back.
+     Over-polished snow starts to give way underfoot again. */
+  var baseSpeed = (sprint ? 5.4 : 3.4) * (0.5 + 0.5 * packed);
+  var grip = 0.5 + 0.5 * packed;
+  if (packed > 0.85) grip *= 1 - (packed - 0.85) * 2.0;
+  var spd0 = Math.sqrt(player.vel.x * player.vel.x + player.vel.z * player.vel.z);
+
+  dashCd = Math.max(0, dashCd - dt);
+  ab.shock = Math.max(0, ab.shock - dt);
+  ab.pillar = Math.max(0, ab.pillar - dt);
+  ab.wall = Math.max(0, ab.wall - dt);
+  ab.spikes = Math.max(0, ab.spikes - dt);
+  castT = Math.max(0, castT - dt);
+  if (wantDash) {
+    wantDash = false;
+    if (dashCd <= 0 && dashT <= 0) startDash(wishX, wishZ);
+  }
+
+  /* sledding: drop onto the snow and let the slope do the work */
+  var sledKey = !!keys['KeyC'];
+  if (sledKey && !sledding && (player.onGround || spd0 > 2)) {
+    sledding = true; sledT = 0;
+    whoosh(0.4, 1500, 420);
+    stampPrint(player.pos.x, player.pos.z, player.yaw, 0.6, 1, 1.1);
+  }
+  if (!sledKey || (player.onGround && spd0 < 0.5 && sledT > 0.5)) sledding = false;
+  if (sledding) sledT += dt; else sledT = 0;
+
+  if (dashT > 0) {
+    dashT -= dt;
+    var ds = 16.0 * (0.30 + 0.70 * (dashT / 0.30));
+    player.vel.x = dashDir.x * ds;
+    player.vel.z = dashDir.z * ds;
+    if (player.onGround) carveTrail(dt, ds, 0.60, 1.15);
+    if (boss && !dashHit && bossHit(11, 4, player.pos.x, player.pos.z, 2.2)) dashHit = true;
+  } else if (sledding) {
+    /* gravity pulls you down the gradient; steering is weak on a sled */
+    slopeAt(player.pos.x, player.pos.z, tmpA);
+    var slideAcc = Math.max(player.grav, 5.0) * 1.5;
+    player.vel.x -= tmpA.x * slideAcc * dt;
+    player.vel.z -= tmpA.z * slideAcc * dt;
+    player.vel.x += wishX * 5.5 * dt;
+    player.vel.z += wishZ * 5.5 * dt;
+    var fr = player.onGround ? (0.5 + 1.3 * loose) : 0.03;
+    player.vel.x -= player.vel.x * Math.min(1, fr * dt);
+    player.vel.z -= player.vel.z * Math.min(1, fr * dt);
+    if (player.onGround) carveTrail(dt, spd0, 0.45, 1.0);
+  } else if (player.onGround) {
+    var kf = 1 - Math.exp(-8.0 * grip * dt);
+    player.vel.x += (wishX * baseSpeed - player.vel.x) * kf;
+    player.vel.z += (wishZ * baseSpeed - player.vel.z) * kf;
+  } else if (mag > 0.01) {
+    var ka = 1 - Math.exp(-1.3 * dt);          // weak steering in flight
+    player.vel.x += (wishX * baseSpeed - player.vel.x) * ka;
+    player.vel.z += (wishZ * baseSpeed - player.vel.z) * ka;
+  }
+  if (slideGain) slideGain.gain.value = (sledding && player.onGround && audioOn)
+    ? clamp(spd0 * 0.022, 0, 0.18) : 0;
+
+  /* --- vertical --- */
+  var ground = groundAt(player.pos.x, player.pos.z);
+  var sinkTarget = SINK_MAX * loose * (sledding ? 0.4 : 1);
+  player.sink = damp(player.sink, sinkTarget, 7, dt);
+
+  if (player.onGround) {
+    if (keys['Space']) {
+      var jv = Math.sqrt(2 * player.grav * (player.grav < 4 ? 1.5 : 0.85));
+      player.vel.y = jv * (0.72 + 0.28 * packed);
+      player.onGround = false;
+      player.airTime = 0;
+      spawnPuff(player.pos.x, ground - player.sink + 0.05, player.pos.z, 0, 0.8, 0, 1.5, 14);
+      stampPrint(player.pos.x, player.pos.z, player.yaw, 0.55 * loose + 0.2, 1, 0.9);
+      thump(0.35);
+    }
+  } else {
+    player.airTime += dt;
+    player.vel.y -= player.grav * (tor.on ? 0.22 : 1) * dt;
+    if (tor.on && player.vel.y < -1.5) player.vel.y += dt * 3.0;
+  }
+
+  player.pos.x += player.vel.x * dt;
+  player.pos.z += player.vel.z * dt;
+  player.pos.y += player.vel.y * dt;
+
+
+  ground = groundAt(player.pos.x, player.pos.z);
+  var floorY = ground - player.sink;
+  /* stay welded to the surface while descending — the floor itself moves as boots sink */
+  if (player.vel.y <= 0.001 && player.pos.y <= floorY + 0.14) {
+    if (!player.onGround && player.vel.y < -1.4) {
+      var impact = clamp(-player.vel.y / 9, 0, 1.6);
+      player.landShake = impact * 0.9;
+      cam.shake = Math.max(cam.shake, impact * 0.55);
+      /* a landing compacts the snow harder than a footfall */
+      stampPrint(player.pos.x, player.pos.z, player.yaw, clamp(0.45 + impact * 0.7, 0, 1) * (0.35 + 0.65 * loose), 1, 1.1 + impact * 0.4);
+      spawnPuff(player.pos.x, floorY + 0.05, player.pos.z, 0, 1.1 + impact, 0, 2.1 + impact, Math.floor(18 + impact * 26));
+      thump(clamp(0.2 + impact * 0.6, 0, 1));
+      player.sink += impact * 0.10;
+    }
+    player.pos.y = damp(player.pos.y, floorY, 24, dt);
+    player.vel.y = 0;
+    player.onGround = true;
+  } else {
+    player.onGround = false;
+  }
+
+  /* --- facing + gait --- */
+  var speed = Math.sqrt(player.vel.x * player.vel.x + player.vel.z * player.vel.z);
+  if (speed > 0.6 && dt > 0) {
+    var hNow = Math.atan2(player.vel.x, player.vel.z);
+    var dh = ((hNow - player.headPrev + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    player.turn = damp(player.turn, dh / dt, 6, dt);
+    player.headPrev = hNow;
+  } else player.turn = damp(player.turn, 0, 4, dt);
+  if (speed > 0.22) {
+    var want = Math.atan2(player.vel.x, player.vel.z);
+    var diff = ((want - player.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    player.yaw += diff * Math.min(1, dt * 9);
+  }
+  player.lean = damp(player.lean, clamp(speed * 0.045, 0, 0.22), 5, dt);
+
+  /* footfalls drive the snow */
+  var lowG = player.grav < 4;
+  var cadence = (lowG ? 2.0 : 2.9) * (sprint ? 1.16 : 1.0);
+  if (player.onGround && speed > 0.3 && !sledding && dashT <= 0) {
+    var prev = Math.sin(player.stepPhase);
+    player.stepPhase += speed * dt * cadence;
+    var now = Math.sin(player.stepPhase);
+    if ((prev > 0 && now <= 0) || (prev < 0 && now >= 0)) {
+      player.lastFoot = -player.lastFoot;
+      var anchor = player.lastFoot > 0 ? footAnchorR : footAnchorL;
+      anchor.getWorldPosition(tmpV);
+      var lp = packAt(tmpV.x, tmpV.z);
+      var depth = clamp(0.55 + 0.45 * (1 - lp), 0, 1) * (sprint ? 1.0 : 0.85);
+      stampPrint(tmpV.x, tmpV.z, player.yaw, depth, 0, 1);
+      var fy = groundAt(tmpV.x, tmpV.z);
+      spawnPuff(tmpV.x, fy + 0.02, tmpV.z,
+        -player.vel.x * 0.28, 0.35 + speed * 0.10, -player.vel.z * 0.28,
+        0.9 + speed * 0.16, Math.floor(4 + speed * (1 - lp) * 5));
+      crunch(clamp(0.22 + speed * 0.09, 0, 0.9) * (0.5 + 0.5 * (1 - lp)));
+      stepCount++;
+      player.bob = 1;
+    }
+  } else if (!player.onGround) {
+    player.stepPhase = damp(player.stepPhase, Math.round(player.stepPhase / Math.PI) * Math.PI, 4, dt);
+  }
+  player.bob = damp(player.bob, 0, 4, dt);
+  player.landShake = damp(player.landShake, 0, 7, dt);
+
+  /* sprinting through powder throws a wake */
+  if (player.onGround && speed > 3.4 && loose > 0.25 && Math.random() < dt * 26) {
+    spawnPuff(player.pos.x - player.vel.x * 0.12, groundAt(player.pos.x, player.pos.z) + 0.04,
+      player.pos.z - player.vel.z * 0.12,
+      -player.vel.x * 0.35, 0.5, -player.vel.z * 0.35, 1.1, 3);
+  }
+  return speed;
+}
+
+/* --- pose the suit --- */
+function poseAstronaut(dt, speed) {
+  astro.position.copy(player.pos);
+  body.rotation.y = player.yaw;
+  var ph = player.stepPhase;
+  var sw = Math.min(1, speed / 4.2);
+  var lowG = player.grav < 4;
+
+  if (sledding) {
+    body.rotation.x = damp(body.rotation.x, -0.95, 9, dt);
+    body.position.y = damp(body.position.y, 0.16, 9, dt);
+    legL.upper.rotation.x = damp(legL.upper.rotation.x, -1.38, 9, dt);
+    legR.upper.rotation.x = damp(legR.upper.rotation.x, -1.26, 9, dt);
+    legL.lower.rotation.x = damp(legL.lower.rotation.x, 0.40, 9, dt);
+    legR.lower.rotation.x = damp(legR.lower.rotation.x, 0.30, 9, dt);
+    legL.end.rotation.x = -0.55; legR.end.rotation.x = -0.55;
+    armL.root.rotation.z = 0.85; armR.root.rotation.z = -0.85;
+    armL.upper.rotation.x = 0.95; armR.upper.rotation.x = 0.95;
+    armL.lower.rotation.x = -0.35; armR.lower.rotation.x = -0.35;
+    torso.rotation.x = 0.30;
+    torso.rotation.z = Math.sin(performance.now() * 0.012) * 0.04 * Math.min(1, speed / 6);
+    torso.rotation.y = 0;
+  } else {
+  body.rotation.x = damp(body.rotation.x, 0, 9, dt);
+  var swing = Math.sin(ph) * (lowG ? 0.62 : 0.78) * sw;
+  var swing2 = Math.sin(ph + Math.PI) * (lowG ? 0.62 : 0.78) * sw;
+
+  legL.upper.rotation.x = swing;
+  legR.upper.rotation.x = swing2;
+  legL.lower.rotation.x = Math.max(0, -Math.sin(ph - 0.7)) * 0.95 * sw + 0.06;
+  legR.lower.rotation.x = Math.max(0, -Math.sin(ph + Math.PI - 0.7)) * 0.95 * sw + 0.06;
+  legL.end.rotation.x = -legL.lower.rotation.x * 0.5 - swing * 0.25;
+  legR.end.rotation.x = -legR.lower.rotation.x * 0.5 - swing2 * 0.25;
+
+  armL.root.rotation.z = 0.21 + Math.sin(ph) * 0.05 * sw;
+  armR.root.rotation.z = -0.21 - Math.sin(ph) * 0.05 * sw;
+  armL.upper.rotation.x = swing2 * 0.55 - 0.18;
+  armR.upper.rotation.x = swing * 0.55 - 0.18;
+  armL.lower.rotation.x = -0.45 - Math.max(0, Math.sin(ph)) * 0.3 * sw;
+  armR.lower.rotation.x = -0.45 - Math.max(0, Math.sin(ph + Math.PI)) * 0.3 * sw;
+
+  if (!player.onGround) {
+    var t = clamp(player.airTime * 2.2, 0, 1);
+    legL.upper.rotation.x = lerp(legL.upper.rotation.x, -0.55 + t * 0.3, 0.7);
+    legR.upper.rotation.x = lerp(legR.upper.rotation.x, 0.45 - t * 0.2, 0.7);
+    legL.lower.rotation.x = lerp(legL.lower.rotation.x, 0.9, 0.7);
+    legR.lower.rotation.x = lerp(legR.lower.rotation.x, 0.5, 0.7);
+    armL.root.rotation.z = 0.75; armR.root.rotation.z = -0.75;
+    armL.upper.rotation.x = -0.5; armR.upper.rotation.x = -0.5;
+  }
+
+  var crouch = player.landShake * 0.28;
+  var bobY = Math.abs(Math.sin(ph)) * 0.045 * sw;
+  body.position.y = -crouch + bobY;
+  torso.rotation.x = player.lean + crouch * 0.6 - Math.sin(ph * 2) * 0.02 * sw;
+  torso.rotation.z = Math.sin(ph) * 0.035 * sw;
+  torso.rotation.y = Math.sin(ph) * 0.09 * sw;
+  }
+
+  /* arms follow whatever the suit is doing with the snow */
+  var upper = 0;
+  if (castT > 0) {
+    var c = Math.sin(Math.min(1, castT / 0.45) * Math.PI);
+    if (castKind === 0) {          // blast: both arms driven down and out
+      armL.root.rotation.z = 0.30 + c * 0.85; armR.root.rotation.z = -0.30 - c * 0.85;
+      armL.upper.rotation.x = 0.6 * c; armR.upper.rotation.x = 0.6 * c;
+      armL.lower.rotation.x = -0.2; armR.lower.rotation.x = -0.2;
+      torso.rotation.x += c * 0.30;
+    } else {                        // pillar / wall: hands thrown forward
+      armL.root.rotation.z = 0.22; armR.root.rotation.z = -0.22;
+      armL.upper.rotation.x = -1.35 * c - 0.2; armR.upper.rotation.x = -1.35 * c - 0.2;
+      armL.lower.rotation.x = -0.25; armR.lower.rotation.x = -0.25;
+      torso.rotation.x -= c * 0.18;
+    }
+    upper = 1;
+  } else if (tor.amt > 0.25) {
+    armL.root.rotation.z = damp(armL.root.rotation.z, 1.25, 8, dt);
+    armR.root.rotation.z = damp(armR.root.rotation.z, -1.25, 8, dt);
+    armL.upper.rotation.x = damp(armL.upper.rotation.x, -0.25, 8, dt);
+    armR.upper.rotation.x = damp(armR.upper.rotation.x, -0.25, 8, dt);
+    armL.lower.rotation.x = damp(armL.lower.rotation.x, -0.15, 8, dt);
+    armR.lower.rotation.x = damp(armR.lower.rotation.x, -0.15, 8, dt);
+    torso.rotation.x -= 0.16 * tor.amt;
+    torso.rotation.y += Math.sin(performance.now() * 0.004) * 0.10 * tor.amt;
+    upper = 1;
+  } else if (orb.active && orb.held) {
+    /* both gloves aimed at the floating mass */
+    var ox = orb.pos.x - astro.position.x, oy = orb.pos.y - (astro.position.y + 1.35), oz = orb.pos.z - astro.position.z;
+    var cy = Math.cos(-player.yaw), sy = Math.sin(-player.yaw);
+    var lx = ox * cy - oz * sy, lz = ox * sy + oz * cy;
+    var flat = Math.sqrt(lx * lx + lz * lz) || 0.001;
+    var pitch = Math.atan2(oy, flat), yawL = Math.atan2(lx, lz);
+    armL.root.rotation.z = damp(armL.root.rotation.z, 0.34, 10, dt);
+    armR.root.rotation.z = damp(armR.root.rotation.z, -0.34, 10, dt);
+    armL.upper.rotation.x = damp(armL.upper.rotation.x, -1.05 - pitch * 0.75, 10, dt);
+    armR.upper.rotation.x = damp(armR.upper.rotation.x, -1.05 - pitch * 0.75, 10, dt);
+    armL.upper.rotation.y = damp(armL.upper.rotation.y, clamp(yawL, -0.8, 0.8) * 0.45, 10, dt);
+    armR.upper.rotation.y = damp(armR.upper.rotation.y, clamp(yawL, -0.8, 0.8) * 0.45, 10, dt);
+    armL.lower.rotation.x = damp(armL.lower.rotation.x, -0.30, 10, dt);
+    armR.lower.rotation.x = damp(armR.lower.rotation.x, -0.30, 10, dt);
+    torso.rotation.x -= 0.12;
+    upper = 1;
+  } else {
+    armL.upper.rotation.y = damp(armL.upper.rotation.y, 0, 8, dt);
+    armR.upper.rotation.y = damp(armR.upper.rotation.y, 0, 8, dt);
+  }
+  if (!upper && dashT > 0) {
+    var dk = dashT / 0.30;
+    armL.root.rotation.z = 0.55; armR.root.rotation.z = -0.55;
+    armL.upper.rotation.x = 1.1 * dk; armR.upper.rotation.x = 1.1 * dk;
+    armL.lower.rotation.x = -0.15; armR.lower.rotation.x = -0.15;
+    torso.rotation.x += 0.45 * dk;
+  }
+
+  /* helmet tracks the camera a little, and breathes when still */
+  var idle = Math.sin(performance.now() * 0.0012) * 0.02 * (1 - sw);
+  var look = ((cam.yaw - player.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+  head.rotation.y = damp(head.rotation.y, clamp(look, -0.75, 0.75) * 0.55, 6, dt);
+  head.rotation.x = damp(head.rotation.x, clamp(-cam.pitch * 0.35, -0.35, 0.4) - player.lean + idle, 6, dt);
+
+  lampLight.visible = lampOn && skinNow === 'astro';
+  /* the lamp only flares when it is pointed near the camera */
+  lamp.getWorldPosition(tmpV);
+  lampLight.target.getWorldPosition(tmpV2);
+  tmpV2.sub(tmpV).normalize();
+  var face = tmpV2.dot(tmpV.copy(camera.position).sub(lamp.getWorldPosition(new THREE.Vector3())).normalize());
+  var flare = lampOn ? clamp(0.10 + Math.pow(Math.max(face, 0), 1.6) * 1.5, 0, 1) : 0.06;
+  flareSprite.material.opacity = flare * 0.85;
+  flareSprite.scale.setScalar(0.75 + flare * 1.1);
+  bulb.material.color.setHex(lampOn ? 0xffffff : 0x5a6070);
+}
+
+/* --- camera --- */
+function updateCamera(dt, speed) {
+  cam.dist = damp(cam.dist, cam.distGoal, 8, dt);
+  headAnchor.getWorldPosition(tmpV);
+
+  if (cam.fp) {
+    camera.position.copy(tmpV);
+    tmpV2.set(
+      tmpV.x + Math.sin(cam.yaw) * Math.cos(cam.pitch),
+      tmpV.y + Math.sin(cam.pitch),
+      tmpV.z + Math.cos(cam.yaw) * Math.cos(cam.pitch)
+    );
+    camera.lookAt(tmpV2);
+    astro.visible = false;
+  } else {
+    astro.visible = true;
+    var focus = tmpV.clone();
+    focus.y -= sledding ? 0.85 : 0.25;
+    var cp = Math.cos(cam.pitch);
+    var off = new THREE.Vector3(
+      -Math.sin(cam.yaw) * cp * cam.dist,
+      -Math.sin(cam.pitch) * cam.dist + 0.35,
+      -Math.cos(cam.yaw) * cp * cam.dist
+    );
+    /* over-the-shoulder nudge */
+    off.x += Math.cos(cam.yaw) * 0.55;
+    off.z -= Math.sin(cam.yaw) * 0.55;
+    var want = focus.clone().add(off);
+    var minY = groundAt(want.x, want.z) + 0.55;
+    if (want.y < minY) want.y = minY;
+    camera.position.lerp(want, 1 - Math.exp(-11 * dt));
+    camera.lookAt(focus);
+  }
+
+  cam.shake = damp(cam.shake, 0, 6, dt);
+  if (cam.shake > 0.001) {
+    camera.position.x += (Math.random() - 0.5) * cam.shake * 0.16;
+    camera.position.y += (Math.random() - 0.5) * cam.shake * 0.16;
+    camera.rotation.z += (Math.random() - 0.5) * cam.shake * 0.03;
+  }
+  var fovWant = 58 + clamp(speed - 3, 0, 3) * 2.6;
+  if (Math.abs(camera.fov - fovWant) > 0.01) {
+    camera.fov = damp(camera.fov, fovWant, 4, dt);
+    camera.updateProjectionMatrix();
+  }
+}
+
+/* ============================================================
+   12. HUD
+   ============================================================ */
+var elSpeed = document.getElementById('tSpeed'), elSink = document.getElementById('tSink'),
+    elPack = document.getElementById('tPack'), elPackBar = document.getElementById('tPackBar'),
+    elSteps = document.getElementById('tSteps'), elGrav = document.getElementById('tGrav'),
+    elComp = document.getElementById('compass'), elMass = document.getElementById('tMass'),
+    elMassBar = document.getElementById('tMassBar'), elDash = document.getElementById('tDash'),
+    elZoom = document.getElementById('zfill'),
+    elRet = document.getElementById('reticle'), elBoss = document.getElementById('bossbar'),
+    elBhp = document.getElementById('bhp'), elBwave = document.getElementById('bwave'),
+    elHp = document.getElementById('hpfill'), elFlash = document.getElementById('flash');
+var abEls = {};
+(function () {
+  var list = document.querySelectorAll('.ab');
+  for (var i = 0; i < list.length; i++) abEls[list[i].getAttribute('data-k')] = list[i].querySelector('i');
+})();
+var AB_MAX = { dash: 1.5, shock: 3.0, pillar: 2.2, wall: 4.0, spikes: 3.6 };
+var hudTimer = 0;
+function updateHUD(dt, speed) {
+  hudTimer += dt;
+  if (hudTimer < 0.1) return;
+  hudTimer = 0;
+  var p = packAt(player.pos.x, player.pos.z);
+  elSpeed.textContent = speed.toFixed(2) + ' m/s';
+  elSink.textContent = Math.round(player.sink * 100) + ' cm';
+  elPack.textContent = sledding ? 'sledding' : (p < 0.12 ? 'virgin powder'
+    : p < 0.4 ? 'broken' : p < 0.72 ? 'packing' : 'hard pack');
+  elPackBar.style.width = Math.round(p * 100) + '%';
+  elSteps.textContent = stepCount;
+  elMass.textContent = !orb.active ? 'empty'
+    : (orb.held ? Math.round(orb.mass * 100) + '% held' : 'in flight');
+  elMassBar.style.width = Math.round((orb.active ? orb.mass : 0) * 100) + '%';
+  elDash.textContent = dashT > 0 ? 'dashing' : (dashCd > 0 ? dashCd.toFixed(1) + ' s' : 'ready');
+  elRet.classList.toggle('live', aimValid);
+  if (elZoom) elZoom.style.height = Math.round((16 - cam.dist) / 13.8 * 100) + '%';
+  abEls.dash.style.transform = 'scaleY(' + (dashCd / AB_MAX.dash) + ')';
+  abEls.shock.style.transform = 'scaleY(' + (ab.shock / AB_MAX.shock) + ')';
+  abEls.pillar.style.transform = 'scaleY(' + (ab.pillar / AB_MAX.pillar) + ')';
+  abEls.wall.style.transform = 'scaleY(' + (ab.wall / AB_MAX.wall) + ')';
+  abEls.vortex.style.transform = 'scaleY(' + (1 - tor.charge) + ')';
+  abEls.spikes.style.transform = 'scaleY(' + (ab.spikes / AB_MAX.spikes) + ')';
+  abEls.rewind.style.transform = 'scaleY(' + (rew.on ? 0.35 : 0) + ')';
+  abEls.lift.style.transform = 'scaleY(' + (orb.active && orb.held ? 0 : 0) + ')';
+  abEls.hurl.style.transform = 'scaleY(' + (orb.active && orb.held ? 0 : 1) + ')';
+  elHp.style.width = Math.max(0, playerHP) + '%';
+  elFlash.style.opacity = downT > 0 ? 0.85 : (hurtT > 0 ? hurtT * 0.7 : 0);
+  elBoss.classList.toggle('on', !!boss);
+  if (boss) {
+    elBhp.style.width = Math.max(0, boss.hp / boss.max * 100) + '%';
+    elBwave.textContent = 'WAVE ' + wave;
+  }
+  elGrav.textContent = player.grav.toFixed(2) + ' m/s²';
+  var hdg = ((player.yaw * 180 / Math.PI) % 360 + 360) % 360;
+  if (window.innerWidth < 900) {
+    elComp.textContent = String(Math.round(hdg)).padStart(3, '0') + '°  ' +
+      speed.toFixed(1) + ' m/s  ' + Math.round(player.sink * 100) + 'cm  ' +
+      (orb.active ? Math.round(orb.mass * 100) + '%' : '—');
+  } else {
+    elComp.textContent = 'HDG ' + String(Math.round(hdg)).padStart(3, '0') +
+      '  ·  GRID ' + player.pos.x.toFixed(1) + ' / ' + player.pos.z.toFixed(1);
+  }
+}
+
+
+/* ============================================================
+   12a. SKY MODES — the same snow under two very different skies
+   ============================================================ */
+var sceneMode = 'space';
+function applyScene(m) {
+  sceneMode = m;
+  var day = (m === 'day');
+  skyMat.uniforms.uMode.value = day ? 1 : 0;
+  if (starPts) starPts.visible = !day;
+  for (var i = 0; i < auroraMeshes.length; i++) auroraMeshes[i].visible = !day;
+  planetGroup.visible = !day;
+
+  if (day) {
+    hemi.color.setHex(0xa9c6f0); hemi.groundColor.setHex(0x9fb2cc); hemi.intensity = 1.05;
+    sun.color.setHex(0xfff6e8); sun.intensity = 2.5;
+    bounce.color.setHex(0xcfe0ff); bounce.intensity = 0.45;
+    SNOW_UNIFORMS.uSkyCol.value.set(0.52, 0.66, 0.92);
+    SNOW_UNIFORMS.uGrdCol.value.set(0.34, 0.42, 0.56);
+    SNOW_UNIFORMS.uFogCol.value.set(0.60, 0.70, 0.86);
+    SNOW_UNIFORMS.uFogDen.value = 0.0026;
+    SNOW_UNIFORMS.uSunCol.value.set(1.0, 0.97, 0.92);
+    scene.fog.color.setHex(0xb4c6dd);
+    compMat.uniforms.uExp.value = 0.44;
+    compMat.uniforms.uBloom.value = 0.34;
+    FOG_COLOR.setHex(0xb4c6dd);
+  } else {
+    hemi.color.setHex(0x5d7dba); hemi.groundColor.setHex(0x1e2a45); hemi.intensity = 0.40;
+    sun.color.setHex(0xfff1dd); sun.intensity = 1.45;
+    bounce.color.setHex(0x9ec4ff); bounce.intensity = 0.22;
+    SNOW_UNIFORMS.uSkyCol.value.set(0.15, 0.24, 0.46);
+    SNOW_UNIFORMS.uGrdCol.value.set(0.05, 0.08, 0.17);
+    SNOW_UNIFORMS.uFogCol.value.set(0.045, 0.070, 0.135);
+    SNOW_UNIFORMS.uFogDen.value = 0.0041;
+    SNOW_UNIFORMS.uSunCol.value.set(1.0, 0.94, 0.86);
+    scene.fog.color.setHex(0x1b2a48);
+    compMat.uniforms.uExp.value = 0.70;
+    compMat.uniforms.uBloom.value = 0.62;
+    FOG_COLOR.setHex(0x1b2a48);
+  }
+}
+
+/* ============================================================
+   12b. MENU + TOUCH CONTROLS
+   ============================================================ */
+var menuOpen = false;
+var menuEl = document.getElementById('menu');
+
+function setChips(group, val) {
+  var host = menuEl.querySelector('.opts[data-g="' + group + '"]');
+  if (!host) return;
+  var cs = host.querySelectorAll('.chip');
+  for (var i = 0; i < cs.length; i++) cs[i].classList.toggle('sel', cs[i].getAttribute('data-v') === val);
+}
+function syncMenu() {
+  setChips('boss', bossMode ? 'on' : 'off');
+  setChips('skin', skinNow);
+  setChips('sky', sceneMode);
+  setChips('grav', player.grav < 4 ? 'moon' : 'earth');
+  setChips('snow', snowfall < 0.1 ? '0' : (snowfall > 0.9 ? '2' : '1'));
+  setChips('bloom', compMat.uniforms.uBloom.value > 0.5 ? 'high' : 'low');
+  setChips('qual', qKey);
+}
+function toggleMenu(force) {
+  menuOpen = (force === undefined) ? !menuOpen : force;
+  menuEl.classList.toggle('on', menuOpen);
+  if (menuOpen) {
+    syncMenu();
+    if (document.pointerLockElement) document.exitPointerLock();
+    keys = {}; gatherHeld = false;
+  } else if (started) {
+    tryLock();
+  }
+}
+menuEl.addEventListener('click', function (e) {
+  var t = e.target;
+  if (t === menuEl) { toggleMenu(false); return; }
+  if (t.id === 'mclose') { toggleMenu(false); return; }
+  if (t.id === 'mreset') { clearDeform(); banner('FIELD SMOOTHED'); return; }
+  if (!t.classList.contains('chip')) return;
+  var g = t.parentNode.getAttribute('data-g'), v = t.getAttribute('data-v');
+  if (g === 'boss') { if ((v === 'on') !== bossMode) toggleBossMode(); }
+  else if (g === 'skin') setSkin(v);
+  else if (g === 'sky') applyScene(v);
+  else if (g === 'grav') player.grav = (v === 'moon') ? G_MOON : G_EARTH;
+  else if (g === 'snow') snowfall = v === '0' ? 0 : v === '1' ? 0.55 : 1.15;
+  else if (g === 'bloom') compMat.uniforms.uBloom.value = (v === 'high') ? 0.62 : 0.28;
+  else if (g === 'qual') {
+    if (v !== qKey) { try { localStorage.setItem('df_quality', v); } catch (err) {} location.reload(); }
+  }
+  syncMenu();
+});
+window.addEventListener('keydown', function (e) {
+  if (e.code === 'KeyH') toggleMenu();
+  if (e.code === 'Escape' && menuOpen) toggleMenu(false);
+});
+
+/* --- zoom bar: tap a step, hold to keep going --- */
+(function () {
+  var zTimer = null;
+  function step(dir) { cam.distGoal = clamp(cam.distGoal + dir * 0.55, 2.2, 16); }
+  function start(dir) {
+    step(dir);
+    clearInterval(zTimer);
+    var held = 0;
+    zTimer = setInterval(function () {
+      step(dir);
+      if (++held > 30) stop();          // a lost touchend can cost a second, no more
+    }, 55);
+  }
+  function stop() { clearInterval(zTimer); zTimer = null; }
+  /* belt and braces: a lost touchend must not leave it zooming forever */
+  window.addEventListener('touchend', stop, true);
+  window.addEventListener('touchcancel', stop, true);
+  window.addEventListener('mouseup', stop, true);
+  window.addEventListener('pointerup', stop, true);
+  document.addEventListener('visibilitychange', stop);
+  var zbs = document.querySelectorAll('.zb');
+  for (var i = 0; i < zbs.length; i++) {
+    (function (btn) {
+      var dir = btn.getAttribute('data-z') === 'in' ? -1 : 1;
+      btn.addEventListener('touchstart', function (e) { e.preventDefault(); e.stopPropagation(); start(dir); }, { passive: false });
+      btn.addEventListener('touchend', function (e) { e.preventDefault(); e.stopPropagation(); stop(); }, { passive: false });
+      btn.addEventListener('touchcancel', stop);
+      btn.addEventListener('mousedown', function (e) { e.preventDefault(); start(dir); });
+      btn.addEventListener('mouseup', stop);
+      btn.addEventListener('mouseleave', stop);
+    })(zbs[i]);
+  }
+  window.addEventListener('blur', stop);
+})();
+
+/* --- touch --- */
+var stickEl = document.getElementById('stick'), stickKnob = stickEl.firstElementChild;
+document.getElementById('touch').classList.add('on');
+if (!isTouch) {
+  /* a desktop has a wheel, but the bar is handy and costs nothing */
+  document.getElementById('stick').style.display = 'none';
+  document.getElementById('tbtns').style.display = 'none';
+  var cornerBtn = document.querySelector('#touch .tb.corner');
+  if (cornerBtn) cornerBtn.style.display = 'none';
+}
+
+(function () {
+  var btns = document.querySelectorAll('.tb');
+  function press(a, on, b) {
+    if (a === 'run') {
+      if (!on) return;
+      runLatch = !runLatch;
+      keys['ShiftLeft'] = runLatch;
+      b.classList.toggle('lit', runLatch);
+      stickEl.classList.toggle('fast', runLatch);
+      return;
+    }
+    if (a === 'jump') keys['Space'] = on;
+    else if (a === 'vortex') { tor.hold = on ? 1 : 0; keys['KeyK'] = on; }
+    else if (a === 'rewind') keys['KeyF'] = on;
+    else if (a === 'sled') keys['KeyC'] = on;
+    else if (a === 'lift') gatherHeld = on;
+    else if (!on) return;
+    else if (a === 'dash') wantDash = true;
+    else if (a === 'hurl') wantThrow = true;
+    else if (a === 'blast') castShock();
+    else if (a === 'spikes') castSpikes();
+    else if (a === 'pillar') castPillar();
+    else if (a === 'wall') castWall();
+    else if (a === 'slam') wantSlam = true;
+    else if (a === 'menu') toggleMenu();
+  }
+  for (var i = 0; i < btns.length; i++) {
+    (function (b) {
+      var a = b.getAttribute('data-a');
+      b.addEventListener('touchstart', function (e) { e.preventDefault(); e.stopPropagation(); press(a, true, b); }, { passive: false });
+      b.addEventListener('touchend', function (e) { e.preventDefault(); e.stopPropagation(); press(a, false, b); }, { passive: false });
+      b.addEventListener('touchcancel', function () { press(a, false, b); });
+      b.addEventListener('click', function (e) { e.preventDefault(); if (!isTouch) { press(a, true, b); press(a, false, b); } });
+    })(btns[i]);
+  }
+})();
+
+/* ============================================================
+   13. FRAME
+   ============================================================ */
+var snowTime = 0;
+var clock = new THREE.Clock();
+var frame = 0, started = false;
+
+function resize() {
+  var w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  allocRTs();
+  var px = renderer.getPixelRatio();
+  flakeMat.uniforms.uPix.value = px;
+  puffMat.uniforms.uPix.value = px;
+  orbMat.uniforms.uPix.value = px;
+  vortMat.uniforms.uPix.value = px;
+  starMat.uniforms.uPix.value = px * SS;
+}
+window.addEventListener('resize', resize);
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (!started) return;
+  var dt = Math.min(clock.getDelta(), 0.05);
+  var t = clock.elapsedTime;
+  frame++;
+  if (menuOpen) dt = 0;
+
+  var speed = updatePlayer(dt);
+  poseAstronaut(dt, speed);
+  updateCamera(dt, speed);
+  updatePuffs(dt, player.grav);
+  updateTelekinesis(dt);
+  updateVortex(dt);
+  updateSpikes(dt);
+  updateRewind(dt);
+  updateBoss(dt);
+
+  /* snow buffer + endless field streaming */
+  flushDecals();
+  healSnow(dt, snowfall);
+  updateField(player.pos.x, player.pos.z);
+  updateTiles(player.pos.x, player.pos.z, false);
+  pumpTileQueue(2);
+  pumpFarField(player.pos.x, player.pos.z, false);
+
+  /* light rig follows */
+  sun.position.set(
+    player.pos.x + SUN_DIR.x * 60,
+    player.pos.y + SUN_DIR.y * 60 + 8,
+    player.pos.z + SUN_DIR.z * 60
+  );
+  sun.target.position.copy(player.pos);
+  sun.target.updateMatrixWorld();
+
+  /* uniforms */
+  SNOW_UNIFORMS.uTime.value = t;
+  SNOW_UNIFORMS.uCamPos.value.copy(camera.position);
+  SNOW_UNIFORMS.uPlayer.value.copy(player.pos);
+  lamp.getWorldPosition(SNOW_UNIFORMS.uLampPos.value);
+  lampLight.target.getWorldPosition(tmpV2);
+  SNOW_UNIFORMS.uLampDir.value.copy(tmpV2).sub(SNOW_UNIFORMS.uLampPos.value).normalize();
+  SNOW_UNIFORMS.uLampOn.value = (lampOn && skinNow === 'astro') ? 1 : 0;
+  if (sun.shadow && sun.shadow.map) {
+    SNOW_UNIFORMS.uShadowMap.value = sun.shadow.map.texture;
+    SNOW_UNIFORMS.uShadowMat.value.copy(sun.shadow.matrix);
+    SNOW_UNIFORMS.uHasShadow.value = 1;
+  }
+
+  skyMat.uniforms.uTime.value = t;
+  starMat.uniforms.uTime.value = t;
+  auroraMat.uniforms.uTime.value = t;
+  driftMat.uniforms.uTime.value = t;
+  driftMat.uniforms.uAmt.value = 0.35 + snowfall * 0.9;
+  snowTime += dt * (rew.on ? -3.2 : 1);
+  flakeMat.uniforms.uTime.value = snowTime;
+  flakeMat.uniforms.uAmt.value = clamp(snowfall, 0, 1.2);
+  flakeMat.uniforms.uCam.value.copy(camera.position);
+  compMat.uniforms.uTime.value = t;
+  tmpV2.copy(camera.position).addScaledVector(SUN_DIR, 900).project(camera);
+  var sunFront = tmpV2.z < 1 && Math.abs(tmpV2.x) < 2.2 && Math.abs(tmpV2.y) < 2.2;
+  compMat.uniforms.uSunUV.value.set(tmpV2.x * 0.5 + 0.5, tmpV2.y * 0.5 + 0.5);
+  compMat.uniforms.uSunAmt.value = damp(compMat.uniforms.uSunAmt.value,
+    sunFront ? clamp(1.3 - Math.hypot(tmpV2.x, tmpV2.y) * 0.7, 0, 1) : 0, 6, dt || 0.016);
+  compMat.uniforms.uFrost.value = damp(compMat.uniforms.uFrost.value, cam.fp ? 0.85 : 0.22, 3, dt || 0.016);
+  orbMat.uniforms.uTime.value = t;
+  vortMat.uniforms.uTime.value = t;
+  vortShellMat.uniforms.uTime.value = t;
+  vortCoreMat.uniforms.uTime.value = t;
+
+  skyDome.position.copy(camera.position);
+  planetGroup.position.set(camera.position.x + 1150, camera.position.y + 470, camera.position.z + 2350);
+  planetMat.uniforms.uTime.value = t;
+  for (var i = 0; i < drifts.length; i++) {
+    var d = drifts[i];
+    var ang = i * 2.1 + t * 0.05;
+    d.position.set(player.pos.x + Math.cos(ang) * (10 + i * 5),
+      groundAt(player.pos.x, player.pos.z) + 0.9,
+      player.pos.z + Math.sin(ang) * (10 + i * 5));
+    d.lookAt(camera.position.x, d.position.y, camera.position.z);
+  }
+
+  /* visor reflections */
+  if (Q.cube && frame % 40 === 5) {
+    astro.visible = false;
+    for (var ti = 0; ti < terrainTiles.length; ti++) terrainTiles[ti].visible = false;
+    envCam.position.copy(SNOW_UNIFORMS.uLampPos.value);
+    envCam.update(renderer, scene);
+    for (var tj = 0; tj < terrainTiles.length; tj++) terrainTiles[tj].visible = true;
+    astro.visible = !cam.fp;
+  }
+
+  /* ---- render ---- */
+  renderer.setRenderTarget(sceneRT);
+  renderer.clear();
+  renderer.render(scene, camera);
+
+  brightMat.uniforms.tIn.value = sceneRT.texture;
+  blit(brightMat, bloomA);
+  var bw = bloomA.width, bh = bloomA.height;
+  var radii = [1.0, 2.2, 4.6];
+  for (var r = 0; r < radii.length; r++) {
+    blurMat.uniforms.tIn.value = bloomA.texture;
+    blurMat.uniforms.uRes.value.set(bw, bh);
+    blurMat.uniforms.uDir.value.set(radii[r], 0);
+    blit(blurMat, bloomB);
+    blurMat.uniforms.tIn.value = bloomB.texture;
+    blurMat.uniforms.uDir.value.set(0, radii[r]);
+    blit(blurMat, bloomA);
+  }
+
+  compMat.uniforms.tScene.value = sceneRT.texture;
+  compMat.uniforms.tBloom.value = bloomA.texture;
+  blit(compMat, null);
+
+  updateHUD(dt, speed);
+}
+
+/* ============================================================
+   14. BOOT SEQUENCE
+   ============================================================ */
+var loadBar = document.querySelector('#loadbar i');
+var loadTxt = document.getElementById('loadtxt');
+var enterBtn = document.getElementById('enter');
+var veil = document.getElementById('veil');
+
+var buildSteps = [];
+function planBuild() {
+  buildSteps = [];
+  buildSteps.push({ t: 'unrolling the snowfield', f: function () { initTiles(); updateTiles(0, 0, false); } });
+  for (var r = 0; r < TILES * TILES; r += 3) {
+    buildSteps.push({ t: 'laying down snow', f: function () { pumpTileQueue(3); } });
+  }
+  buildSteps.push({ t: 'raising the horizon', f: function () { buildFarField(); pumpFarField(0, 0, true); } });
+  buildSteps.push({
+    t: 'calibrating the visor', f: function () {
+      resize();
+      player.sink = SINK_MAX;
+      player.pos.y = groundAt(0, 0) - player.sink;
+      astro.position.copy(player.pos);
+      astro.updateMatrixWorld(true);
+      applyScene(sceneMode);
+      renderer.compile(scene, camera);
+      envCam.position.set(0, 1.6, 0);
+      astro.visible = false;
+      envCam.update(renderer, scene);
+      astro.visible = true;
+    }
+  });
+}
+
+var stepI = 0;
+function runBuild() {
+  if (stepI >= buildSteps.length) {
+    loadBar.style.width = '100%';
+    loadTxt.textContent = 'ready';
+    enterBtn.classList.add('ready');
+    document.getElementById('settings').classList.add('ready');
+    enterBtn.focus();
+    return;
+  }
+  var s = buildSteps[stepI];
+  loadTxt.textContent = s.t;
+  s.f();
+  stepI++;
+  loadBar.style.width = Math.round(stepI / buildSteps.length * 100) + '%';
+  requestAnimationFrame(runBuild);
+}
+
+/* quality chips */
+var chips = document.querySelectorAll('.chip');
+for (var ci = 0; ci < chips.length; ci++) {
+  chips[ci].addEventListener('click', function () {
+    if (started) return;
+    var q = this.getAttribute('data-q');
+    if (q === qKey) return;
+    localStorage.setItem('df_quality', q);
+    location.reload();
+  });
+}
+for (var cj = 0; cj < chips.length; cj++) {
+  chips[cj].classList.toggle('sel', chips[cj].getAttribute('data-q') === qKey);
+}
+
+enterBtn.addEventListener('click', function () {
+  started = true;
+  initAudio();
+  if (AC && AC.state === 'suspended') AC.resume();
+  veil.classList.add('gone');
+  document.getElementById('hud').classList.add('on');
+  clock.start();
+  tryLock();
+});
+
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) { clock.getDelta(); }
+});
+
+planBuild();
+requestAnimationFrame(runBuild);
+animate();
+
+})();
+}
+</script>
+</body>
+</html>
