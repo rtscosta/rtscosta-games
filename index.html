@@ -173,7 +173,20 @@
         "Desktop"
       ],
       "applicationCategory": "Game"
-    }    
+    },
+    {
+      "@type": "VideoGame",
+      "position": 11,
+      "name": "Updraft",
+      "url": "https://chatstupidity.com/updraft.html",
+      "image": "https://chatstupidity.com/img/updrafit.png",
+      "description": "Swing through a golden-hour Manhattan, fire webs across the skyline, wall-run up buildings, dive toward the streets, and explore the city with no missions or timer.",
+      "gamePlatform": [
+        "Web Browser",
+        "Desktop"
+      ],
+      "applicationCategory": "Game"
+    }
   ]
 }
 </script>
@@ -332,6 +345,7 @@ header{
 .sling{background:linear-gradient(135deg,#FF8A3D,#7A5CFF);}
 .liminal{background:linear-gradient(135deg,#B8E6FF,#9BF57A);}
 .deepfield{background:linear-gradient(135deg,#DFF6FF,#7DB7D8);}
+.updraft{ background:linear-gradient(135deg,#FFB347,#FF7043);}
 
 .badge{
   position:absolute;
@@ -808,6 +822,44 @@ footer{
 </a>
 
 <section class="games" id="games">
+
+  <a href="updraft.html"
+    class="card large updraft"
+    onclick="trackGameClick('Updraft: Golden Hour')">
+
+    <div class="badge">CHASE THE SUN</div>
+
+    <div class="card-content">
+
+      <img
+        class="game-image"
+        src="img/updrafit.png"
+        alt="Updraft: Golden Hour">
+
+      <h2>Updraft</h2>
+
+      <p>
+        Swing, wall-run, and fly through a golden-hour Manhattan.
+        No missions. Just motion.
+      </p>
+
+      <div class="play">
+        Take Flight →
+      </div>
+
+      <div
+        class="share-game-button"
+        role="button"
+        tabindex="0"
+        aria-label="Share Updraft: Golden Hour"
+        onclick="openShareMenu(event, 'updraft')"
+        onkeydown="handleShareKey(event, 'updraft')">
+        SHARE GAME ↗
+      </div>
+
+    </div>
+
+  </a>
 
   <a href="deepfield.html"
     class="card large deepfield"
@@ -1340,6 +1392,12 @@ const gameShareData = {
     description: "Every step changes the snow. Pack your own trail, switch gravity, and make the Moon regret giving you boots.",
     image: "img/deepfield.png",
     shareUrl: "https://chatstupidity.com/share-deepfield.html"
+  },
+  updraft: {
+  title: "Updraft",
+  description: "Swing, wall-run, and fly through a golden-hour Manhattan. No missions. Just motion.",
+  image: "img/updrafit.png",
+  shareUrl: "https://chatstupidity.com/share-updraft.html"
   },
 };
 
