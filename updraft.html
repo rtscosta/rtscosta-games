@@ -85,6 +85,20 @@ button{font:inherit;color:inherit}
 #dropZone.on{display:flex}
 @media (max-width:420px){ .picks{grid-template-columns:1fr} }
 
+
+.howto{margin-top:14px;padding:14px 16px;border:1px solid var(--line);border-radius:8px;background:rgba(247,239,228,.04);max-width:46ch}
+.howto h4{margin:0 0 8px;font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:.02em}
+.howto ol{margin:0;padding-left:20px;font-size:14px;line-height:1.5;color:var(--muted)}
+.howto li{margin:3px 0}
+.howto li b{color:var(--ink);font-weight:600}
+.howto a{color:var(--sun)}
+.howto p{margin:10px 0 12px;font-size:13px;line-height:1.45;color:var(--muted)}
+.howto .sample{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink);border:1px solid rgba(244,163,64,.55);border-radius:8px;padding:10px 12px;background:rgba(244,163,64,.1);transition:background .15s}
+.howto .sample:hover{background:rgba(244,163,64,.2)}
+.howto .sample b{display:block;font-size:15px;font-weight:600}
+.howto .sample small{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
+.sico{flex:none;width:34px;height:34px;border-radius:50%;background:var(--sun);color:#23160A;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700}
+
 /* HUD */
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10;opacity:0;transition:opacity .4s}
 #hud.on{opacity:1}
@@ -114,15 +128,32 @@ button{font:inherit;color:inherit}
 #fade.on{opacity:1}
 
 /* Touch */
-#touch{position:fixed;inset:0;z-index:12;display:none}
+#touch{position:fixed;inset:0;z-index:12;display:none;touch-action:none;-webkit-touch-callout:none}
 #touch.on{display:block}
-#stick{position:absolute;left:28px;bottom:calc(34px + env(safe-area-inset-bottom,0px));width:128px;height:128px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(20,15,12,.25)}
-#stick i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,255,255,.35)}
-.tbtn{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(20,15,12,.35);color:#fff;font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:center}
-#tSwing{right:26px;bottom:calc(40px + env(safe-area-inset-bottom,0px));width:96px;height:96px;background:rgba(244,163,64,.55);border-color:rgba(255,220,170,.7);color:#23160A}
-#tJump{right:136px;bottom:calc(28px + env(safe-area-inset-bottom,0px));width:68px;height:68px}
-#tZip{right:40px;bottom:calc(152px + env(safe-area-inset-bottom,0px));width:64px;height:64px}
-#tPause{right:18px;top:calc(18px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:8px;font-size:18px}
+#stick{position:absolute;left:34px;bottom:calc(40px + env(safe-area-inset-bottom,0px));width:132px;height:132px;margin:0;border-radius:50%;border:1.5px solid rgba(255,255,255,.28);background:rgba(255,255,255,.06);opacity:.55;transition:opacity .15s;pointer-events:none}
+#stick.active{opacity:1;transition:none}
+#stick i{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(255,255,255,.28);border:1.5px solid rgba(255,255,255,.5);box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.tbtn{position:absolute;appearance:none;border-radius:50%;border:1.5px solid rgba(255,255,255,.38);background:rgba(255,255,255,.1);color:rgba(255,255,255,.92);font:600 13px/1 var(--body);letter-spacing:.02em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0;text-shadow:0 1px 4px rgba(0,0,0,.55);-webkit-tap-highlight-color:transparent;transition:transform .08s, background .08s}
+.tbtn svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
+.tbtn.on{background:rgba(244,163,64,.4);border-color:rgba(255,215,160,.85);transform:scale(.94)}
+#tSwing{right:max(24px, env(safe-area-inset-right,0px));bottom:calc(36px + env(safe-area-inset-bottom,0px));width:104px;height:104px;border-color:rgba(255,200,130,.6);background:rgba(244,163,64,.16)}
+#tSwing svg{width:34px;height:34px}
+#tJump{right:calc(max(24px, env(safe-area-inset-right,0px)) + 118px);bottom:calc(26px + env(safe-area-inset-bottom,0px));width:72px;height:72px}
+#tZip{right:calc(max(24px, env(safe-area-inset-right,0px)) + 18px);bottom:calc(154px + env(safe-area-inset-bottom,0px));width:68px;height:68px}
+#tDash{right:calc(max(24px, env(safe-area-inset-right,0px)) + 110px);bottom:calc(112px + env(safe-area-inset-bottom,0px));width:60px;height:60px}
+#tDoor{left:50%;bottom:calc(30% + env(safe-area-inset-bottom,0px));transform:translateX(-50%);border-radius:999px;width:auto;height:48px;padding:0 20px;flex-direction:row;gap:8px;font-size:15px;background:rgba(20,15,12,.45);border-color:rgba(255,215,160,.7)}
+#tDoor.on{transform:translateX(-50%) scale(.96)}
+#tDoor[hidden]{display:none}
+#tPause{right:max(16px, env(safe-area-inset-right,0px));top:calc(16px + env(safe-area-inset-top,0px));width:46px;height:46px;border-radius:10px}
+#tPause svg{width:20px;height:20px}
+#rotateTip{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);display:none;background:rgba(20,15,12,.6);border:1px solid rgba(255,255,255,.25);padding:10px 16px;border-radius:10px;font-size:14px;text-align:center;pointer-events:none;max-width:70vw}
+@media (orientation: portrait){ #touch.on #rotateTip{display:block;animation:tipfade 5s forwards} }
+@keyframes tipfade{0%,70%{opacity:1}100%{opacity:0}}
+body.touchplay #speedo{bottom:auto;top:calc(16px + env(safe-area-inset-top,0px));left:max(16px, env(safe-area-inset-left,0px))}
+body.touchplay #speedo .v{font-size:34px}
+body.touchplay #place{top:calc(78px + env(safe-area-inset-top,0px));font-size:20px}
+body.touchplay #chaseHud{top:calc(70px + env(safe-area-inset-top,0px));right:max(16px, env(safe-area-inset-right,0px));max-width:240px;font-size:13px}
+body.touchplay #prompt{display:none}
 @media (max-width:640px){
   #menu{background:linear-gradient(180deg,var(--scrim) 0%, rgba(20,15,12,.62) 60%, rgba(20,15,12,.4) 100%)}
   #speedo .v{font-size:44px}
@@ -166,6 +197,19 @@ button{font:inherit;color:inherit}
       </div>
       <input type="file" id="charFile" accept=".glb,model/gltf-binary" hidden>
       <div id="charStatus" role="status" aria-live="polite">Your file stays on your computer. Once loaded, the game remembers it in this browser.</div>
+      <div class="howto">
+        <h4>Get a new character</h4>
+        <ol>
+          <li>Create a free account on <a href="https://sketchfab.com/" target="_blank" rel="noopener">sketchfab.com</a>.</li>
+          <li>Find a character you like and click <b>Download 3D Model</b>, then choose the <b>GLB</b> format.</li>
+          <li>Come back here, click <b>Upload a model</b>, and pick the file you downloaded.</li>
+        </ol>
+        <p>Models with animations named Idle, Run, Jump or Swing move best. Check each model's license before you use it.</p>
+        <a class="sample" href="http://chatstupidity.com/download/amongus.glb" target="_blank" rel="noopener" download>
+          <span class="sico" aria-hidden="true">&#x2913;</span>
+          <span><b>Try a sample model</b><small>Download amongus.glb, then upload it above</small></span>
+        </a>
+      </div>
     </div>
 
     <div class="section" id="travel">
@@ -222,10 +266,14 @@ button{font:inherit;color:inherit}
 
 <div id="touch">
   <div id="stick"><i></i></div>
-  <div class="tbtn" id="tSwing">Swing</div>
-  <div class="tbtn" id="tJump">Jump</div>
-  <div class="tbtn" id="tZip">Zip</div>
-  <div class="tbtn" id="tPause" aria-label="Pause">II</div>
+  <button class="tbtn" id="tSwing" aria-label="Swing"><svg viewBox="0 0 24 24"><path d="M5 20 C 8 11, 14 6, 20 4"/><path d="M20 4 l-5 .5 M20 4 l-1.5 4.7"/><circle cx="5" cy="20" r="1.6"/></svg>Swing</button>
+  <button class="tbtn" id="tJump" aria-label="Jump"><svg viewBox="0 0 24 24"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg>Jump</button>
+  <button class="tbtn" id="tZip" aria-label="Zip"><svg viewBox="0 0 24 24"><path d="M4 12h13"/><path d="M13 7l5 5-5 5"/><path d="M20 5v14"/></svg>Zip</button>
+  <button class="tbtn" id="tDash" aria-label="Sprint or dive"><svg viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>Dash</button>
+  <button class="tbtn" id="tDoor" hidden aria-label="Enter">Enter</button>
+  <button class="tbtn" id="tPause" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg></button>
+  <div id="rotateTip">Turn your phone sideways for the best view</div>
+</div>
 </div>
 
 <script>
@@ -2160,7 +2208,7 @@ function startChase(){
   for (const c of [g, p1, p2]) cars.push(c);
   chase.active = { cars: [g, p1, p2], getaway: g, state: 'run', t: 0 };
   $('#chaseHud').classList.add('on');
-  $('#chaseHud').textContent = 'High-speed chase! Aim at the black getaway car and press E (right click) to web it.';
+  $('#chaseHud').textContent = isTouch ? 'High-speed chase! Aim at the black getaway car and tap Zip to web it.' : 'High-speed chase! Aim at the black getaway car and press E (right click) to web it.';
   sfx.siren && sfx.siren(true);
 }
 function endChase(msg){
@@ -2681,6 +2729,11 @@ function updateExtras(dt){
   const pr = $('#prompt');
   if (doorTarget){ pr.textContent = doorTarget.exit ? 'E  Leave' : 'E  Enter ' + SHOPS[doorTarget.entrance.shop].name; pr.classList.add('on'); }
   else pr.classList.remove('on');
+  if (isTouch){
+    const db = $('#tDoor'); const label = doorTarget ? (doorTarget.exit ? 'Leave' : 'Enter ' + SHOPS[doorTarget.entrance.shop].name) : '';
+    if (!!doorTarget === db.hidden) db.hidden = !doorTarget;
+    if (label && db.textContent !== label) db.textContent = label;
+  }
   placeTimer -= dt;
   if (placeTimer <= 0){
     placeTimer = 0.5;
@@ -3042,6 +3095,7 @@ function setPaused(p){
   menu.classList.toggle('hidden', !p);
   $('#hud').classList.toggle('on', !p);
   $('#touch').classList.toggle('on', !p && isTouch);
+  document.body.classList.toggle('touchplay', !p && isTouch);
   if (p){ keys.clear(); input.swing = false; }
   $('#play').textContent = started ? 'Resume' : 'Start swinging';
   $('#travel').classList.toggle('show', started);
@@ -3121,43 +3175,65 @@ function setupTravel(){
   }
 }
 
-// touch controls
+// touch controls: floating joystick on the left, drag anywhere else to look, transparent action buttons
 (function touchControls(){
   if (!isTouch) return;
-  $('#keysDesktop').innerHTML = '<kbd>Left stick</kbd><span>Run and steer</span><kbd>Drag right side</kbd><span>Look around</span><kbd>Swing</kbd><span>Hold to swing, let go to launch</span><kbd>Zip</kbd><span>Zip to the marker at screen centre</span><kbd>Jump</kbd><span>Jump, or kick off a wall</span>';
-  const stick = $('#stick'), knob = stick.querySelector('i');
-  let stickId = null, lookId = null, lx = 0, ly = 0;
-  const layer = $('#touch');
+  document.body.classList.add('touch');
+  $('#keysDesktop').innerHTML = '<kbd>Left thumb</kbd><span>Touch anywhere on the left side to run and steer</span><kbd>Right thumb</kbd><span>Drag to look around</span><kbd>Swing</kbd><span>Hold to swing, let go to launch</span><kbd>Zip</kbd><span>Zip to the marker, web a helicopter or a getaway car</span><kbd>Jump</kbd><span>Jump, or kick off a wall</span><kbd>Dash</kbd><span>Hold to sprint, or dive in the air</span><kbd>Enter</kbd><span>Appears next to shop doors</span>';
+  $('#hint').textContent = 'Hold Swing to swing. Let go at the bottom of the arc.';
+  const layer = $('#touch'), stick = $('#stick'), knob = stick.querySelector('i');
+  const R = 66;
+  let stickId = null, sx = 0, sy = 0, lookId = null, lx = 0, ly = 0;
+  const btnOf = t => t && t.closest ? t.closest('.tbtn') : null;
+  const press = (b, down) => {
+    b.classList.toggle('on', down);
+    if (b.id === 'tSwing') input.swing = down;
+    if (b.id === 'tDash') input.sprint = down;
+    if (!down) return;
+    if (b.id === 'tJump') input.jumpPress = true;
+    if (b.id === 'tZip'){ if (!(doorTarget && useDoor())) input.zipPress = true; }
+    if (b.id === 'tDoor') useDoor();
+    if (b.id === 'tPause') setPaused(true);
+  };
+  const held = new Map();
   layer.addEventListener('pointerdown', e => {
-    const t = e.target;
-    if (t.id === 'tSwing'){ input.swing = true; return; }
-    if (t.id === 'tJump'){ input.jumpPress = true; return; }
-    if (t.id === 'tZip'){ if (!(doorTarget && useDoor())) input.zipPress = true; return; }
-    if (t.id === 'tPause'){ setPaused(true); return; }
-    if (e.clientX < innerWidth * 0.4 && stickId === null){ stickId = e.pointerId; moveStick(e); }
-    else if (lookId === null){ lookId = e.pointerId; lx = e.clientX; ly = e.clientY; }
-  });
+    e.preventDefault();
+    const b = btnOf(e.target);
+    if (b){ held.set(e.pointerId, b); try { b.setPointerCapture(e.pointerId); } catch (err) {} press(b, true); return; }
+    if (e.clientX < innerWidth * 0.42 && stickId === null){
+      stickId = e.pointerId;
+      sx = clamp(e.clientX, R + 8, innerWidth * 0.42); sy = clamp(e.clientY, R + 8, innerHeight - R - 8);
+      stick.style.left = (sx - R) + 'px'; stick.style.top = (sy - R) + 'px'; stick.style.bottom = 'auto';
+      stick.classList.add('active'); moveStick(e);
+    } else if (lookId === null){ lookId = e.pointerId; lx = e.clientX; ly = e.clientY; }
+  }, { passive: false });
   function moveStick(e){
-    const r = stick.getBoundingClientRect(); const cx = r.left + r.width/2, cy = r.top + r.height/2;
-    let dx = (e.clientX - cx) / (r.width/2), dy = (e.clientY - cy) / (r.height/2);
+    let dx = (e.clientX - sx) / R, dy = (e.clientY - sy) / R;
     const l = Math.hypot(dx, dy); if (l > 1){ dx /= l; dy /= l; }
     input.stick.x = dx; input.stick.y = -dy;
-    knob.style.transform = `translate(${dx*36}px, ${dy*36}px)`;
+    knob.style.transform = `translate(${dx * 40}px, ${dy * 40}px)`;
   }
   layer.addEventListener('pointermove', e => {
     if (e.pointerId === stickId) moveStick(e);
-    if (e.pointerId === lookId){
-      const s = 0.005 * settings.sens;
+    else if (e.pointerId === lookId){
+      const s = 0.0055 * settings.sens;
       cam.yaw -= (e.clientX - lx) * s; cam.pitch = clamp(cam.pitch - (e.clientY - ly) * s, -1.35, 1.1);
       lx = e.clientX; ly = e.clientY; input.lookIdle = 0;
     }
-  });
+  }, { passive: true });
   const end = e => {
-    if (e.target.id === 'tSwing') input.swing = false;
-    if (e.pointerId === stickId){ stickId = null; input.stick.x = input.stick.y = 0; knob.style.transform = ''; }
+    const b = held.get(e.pointerId);
+    if (b){ held.delete(e.pointerId); press(b, false); }
+    if (e.pointerId === stickId){
+      stickId = null; input.stick.x = input.stick.y = 0; knob.style.transform = '';
+      stick.classList.remove('active'); stick.style.left = ''; stick.style.top = ''; stick.style.bottom = '';
+    }
     if (e.pointerId === lookId) lookId = null;
   };
-  layer.addEventListener('pointerup', end); layer.addEventListener('pointercancel', end);
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) layer.addEventListener(ev, end);
+  layer.addEventListener('contextmenu', e => e.preventDefault());
+  // release everything if the app is backgrounded mid-press
+  document.addEventListener('visibilitychange', () => { if (document.hidden){ held.forEach(b => press(b, false)); held.clear(); stickId = lookId = null; input.stick.x = input.stick.y = 0; } });
 })();
 
 // ---------------------------------------------------------------- main loop
