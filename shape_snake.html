@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coiled Snake</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: transparent; /* No background color */
+        }
+
+        .snake {
+            display: flex;
+            flex-wrap: wrap;
+            width: 100px; /* Width to allow coiling */
+            height: 100px;
+            position: relative;
+        }
+
+        .pixel {
+            width: 10px;
+            height: 10px;
+            box-sizing: border-box;
+        }
+
+        .head {
+            background-color: green; /* Snake's head */
+            position: absolute;
+            top: 0;
+            left: 30px;
+        }
+
+        .tongue {
+            background-color: red; /* Red tongue */
+            position: absolute;
+            top: 0;
+            left: 20px;
+        }
+
+        .body1 {
+            background-color: green;
+            position: absolute;
+            top: 10px;
+            left: 30px;
+        }
+
+        .body2 {
+            background-color: green;
+            position: absolute;
+            top: 20px;
+            left: 30px;
+        }
+
+        .body3 {
+            background-color: green;
+            position: absolute;
+            top: 30px;
+            left: 30px;
+        }
+
+        .body4 {
+            background-color: green;
+            position: absolute;
+            top: 30px;
+            left: 20px;
+        }
+
+        .body5 {
+            background-color: green;
+            position: absolute;
+            top: 30px;
+            left: 10px;
+        }
+
+        .body6 {
+            background-color: green;
+            position: absolute;
+            top: 20px;
+            left: 10px;
+        }
+
+        .body7 {
+            background-color: green;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+
+        .body8 {
+            background-color: green;
+            position: absolute;
+            top: 40px;
+            left: 20px;
+        }
+
+        .body9 {
+            background-color: green;
+            position: absolute;
+            top: 50px;
+            left: 20px;
+        }
+
+        .body10 {
+            background-color: green;
+            position: absolute;
+            top: 60px;
+            left: 20px;
+        }
+
+        .body11 {
+            background-color: green;
+            position: absolute;
+            top: 60px;
+            left: 30px;
+        }
+
+        .body12 {
+            background-color: green;
+            position: absolute;
+            top: 60px;
+            left: 40px;
+        }
+
+        .body13 {
+            background-color: green;
+            position: absolute;
+            top: 50px;
+            left: 40px;
+        }
+
+        .body14 {
+            background-color: green;
+            position: absolute;
+            top: 40px;
+            left: 40px;
+        }
+
+        .body15 {
+            background-color: green;
+            position: absolute;
+            top: 30px;
+            left: 40px;
+        }
+
+        .tail {
+            background-color: green; /* Tail at the end of the body */
+            position: absolute;
+            top: 70px;
+            left: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="snake">
+        <div class="pixel head"></div>
+        <div class="pixel tongue"></div>
+        <div class="pixel body body1"></div>
+        <div class="pixel body body2"></div>
+        <div class="pixel body body3"></div>
+        <!-- <div class="pixel body body4"></div> -->
+        <!-- <div class="pixel body body5"></div>
+        <div class="pixel body body6"></div>
+        <div class="pixel body body7"></div> -->
+        <!-- <div class="pixel body body8"></div>
+        <div class="pixel body body9"></div> -->
+        <!-- <div class="pixel body body10"></div> -->
+        <!-- <div class="pixel body body11"></div>
+        <div class="pixel body body12"></div> -->
+        <div class="pixel body body13"></div>
+        <div class="pixel body body14"></div>
+        <div class="pixel body body15"></div>
+        <!-- <div class="pixel tail"></div> -->
+    </div>
+</body>
+</html>
